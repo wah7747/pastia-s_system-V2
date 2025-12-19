@@ -490,7 +490,7 @@ table tbody tr:nth-child(even):hover {
   box-shadow: 0 2px 8px rgba(79, 70, 229, 0.2);
 }
 
-.status-overdue {
+.status-cancelled {
   background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
   color: #7f1d1d;
   box-shadow: 0 2px 8px rgba(220, 38, 38, 0.2);

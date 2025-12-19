@@ -39,12 +39,21 @@ const transactionTypeSale = document.getElementById("transactionTypeSale");
 let currentTransactionType = "rental"; // Default to rental
 
 
+
 let allItems = [];
 let editRentalId = null;
 let showArchived = false;
 let cartItems = []; // Array to store items before creating rentals
 let currentUser = null; // Store current user profile for role checking
 let itemSearch = null; // Searchable dropdown instance
+
+// Cancel/Reschedule modal
+let pendingCancelRentalId = null;
+const cancelRescheduleModal = document.getElementById('cancelRescheduleModal');
+const rescheduleBtn = document.getElementById('rescheduleBtn');
+const cancelCompletelyBtn = document.getElementById('cancelCompletelyBtn');
+const closeCancelRescheduleBtn = document.getElementById('closeCancelRescheduleBtn');
+const cancelRescheduleOverlay = document.getElementById('cancelRescheduleOverlay');
 
 // ---------- HELPER FUNCTIONS ----------
 
@@ -276,6 +285,20 @@ function openModal(rental = null) {
     rentalDate.value = rental.rent_date || "";
     returnDate.value = rental.return_date || "";
 
+    // Show and populate original dates section (for rescheduling)
+    const originalDatesSection = document.getElementById("originalDatesSection");
+    const rescheduleSectionHeader = document.getElementById("rescheduleSectionHeader");
+    const originalRentalDate = document.getElementById("originalRentalDate");
+    const originalReturnDate = document.getElementById("originalReturnDate");
+
+    if (originalDatesSection && rescheduleSectionHeader) {
+      originalDatesSection.style.display = "block";
+      rescheduleSectionHeader.style.display = "block";
+
+      if (originalRentalDate) originalRentalDate.value = rental.rent_date || "";
+      if (originalReturnDate) originalReturnDate.value = rental.return_date || "";
+    }
+
     paymentMethod.value = rental.payment_method || "Cash";
     paymentStatus.value = rental.payment_status || "Pending";
     rentalStatus.value = rental.status || "active";
@@ -340,6 +363,12 @@ function openModal(rental = null) {
     rentalStatus.value = "active";
     customPriceCheckbox.checked = false;
     paymentAmount.setAttribute("readonly", true);
+
+    // Hide original dates section when creating new rental
+    const originalDatesSection = document.getElementById("originalDatesSection");
+    const rescheduleSectionHeader = document.getElementById("rescheduleSectionHeader");
+    if (originalDatesSection) originalDatesSection.style.display = "none";
+    if (rescheduleSectionHeader) rescheduleSectionHeader.style.display = "none";
 
     // Show cart UI and reset cart
     addToCartSection.style.display = "block";
@@ -533,7 +562,7 @@ async function loadItems() {
   const { data: rentals, error: rentalError } = await supabase
     .from("rentals")
     .select("item_id, quantity")
-    .in("status", ["active", "reserved", "overdue"])
+    .in("status", ["active", "reserved"])
     .or('archived.is.null,archived.eq.false');
 
   if (rentalError) {
@@ -652,10 +681,83 @@ viewHistoryToggle?.addEventListener("change", () => {
   loadRentals();
 });
 
-// Expose archive function globally so it can be called from HTML onclick
+// Expose archive function globally - now shows cancel/reschedule modal
 window.archiveRental = async (id) => {
-  if (!confirm("Are you sure you wish to put this in the archive? This will move it to history.")) return;
+  // Show cancel/reschedule modal instead of direct archive
+  showCancelRescheduleModal(id);
+};
 
+// Expose delete function globally - now shows cancel/reschedule modal
+window.deleteRental = async (id) => {
+  // Check permission
+  if (!await canDelete()) {
+    alert("Permission denied. Only Admins can delete rentals.");
+    return;
+  }
+
+  // Show cancel/reschedule modal instead of direct delete
+  showCancelRescheduleModal(id);
+};
+
+// Show the cancel/reschedule modal
+function showCancelRescheduleModal(rentalId) {
+  pendingCancelRentalId = rentalId;
+  cancelRescheduleModal?.classList.remove('hidden');
+  cancelRescheduleModal?.setAttribute('aria-hidden', 'false');
+}
+
+// Close the cancel/reschedule modal
+function closeCancelRescheduleModal() {
+  cancelRescheduleModal?.classList.add('hidden');
+  cancelRescheduleModal?.setAttribute('aria-hidden', 'true');
+  pendingCancelRentalId = null;
+}
+
+// Handle reschedule button - open edit modal
+rescheduleBtn?.addEventListener('click', async () => {
+  closeCancelRescheduleModal();
+
+  if (!pendingCancelRentalId) return;
+
+  // Fetch the rental data
+  const { data: rental, error } = await supabase
+    .from('rentals')
+    .select('*')
+    .eq('id', pendingCancelRentalId)
+    .single();
+
+  if (error || !rental) {
+    alert('Error loading rental data');
+    return;
+  }
+
+  // Open edit modal with existing data
+  openModal(rental);
+
+  pendingCancelRentalId = null;
+});
+
+// Handle cancel completely button - archive rental (since archive/delete merged)
+cancelCompletelyBtn?.addEventListener('click', async () => {
+  closeCancelRescheduleModal();
+
+  if (!pendingCancelRentalId) return;
+
+  if (!confirm("Are you sure you want to move this reservation to archive? It will be removed from the active list.")) {
+    pendingCancelRentalId = null;
+    return;
+  }
+
+  await archiveRentalCompletely(pendingCancelRentalId);
+  pendingCancelRentalId = null;
+});
+
+// Close modal handlers
+closeCancelRescheduleBtn?.addEventListener('click', closeCancelRescheduleModal);
+cancelRescheduleOverlay?.addEventListener('click', closeCancelRescheduleModal);
+
+// Actual archiving function (since archive and delete buttons were merged)
+async function archiveRentalCompletely(id) {
   const { error } = await supabase
     .from("rentals")
     .update({ archived: true })
@@ -664,47 +766,10 @@ window.archiveRental = async (id) => {
   if (error) {
     alert("Error archiving rental: " + error.message);
   } else {
+    alert("Rental moved to archive successfully.");
     loadRentals();
   }
-};
-
-// Expose delete function globally
-window.deleteRental = async (id) => {
-  // Check permission
-  if (!await canDelete()) {
-    alert("Permission denied. Only Admins can delete rentals.");
-    return;
-  }
-
-  if (!confirm("Are you sure you want to DELETE this rental permanently? This cannot be undone.")) return;
-
-  try {
-    const { error, count } = await supabase
-      .from("rentals")
-      .delete({ count: 'exact' })
-      .eq("id", id);
-
-    if (error) {
-      // Check for foreign key constraint error (linked reports)
-      if (error.code === '23503') {
-        alert("Cannot delete this rental because it has linked Reports (Incident Reports). Please delete the reports first.");
-      } else {
-        alert("Error deleting rental: " + (error.message || JSON.stringify(error)));
-      }
-      console.error("Delete error:", error);
-    } else if (count === 0) {
-      alert("Item could not be deleted. It may have already been deleted or you do not have permission.");
-      loadRentals(); // Refresh to sync UI
-    } else {
-      alert("Rental deleted successfully.");
-      loadRentals();
-      refreshCalendar(); // Refresh calendar view
-    }
-  } catch (err) {
-    console.error("Unexpected error:", err);
-    alert("An unexpected error occurred.");
-  }
-};
+}
 
 // Expose archive group function for grouped rentals
 window.archiveRentalGroup = async (idsString) => {
@@ -981,8 +1046,8 @@ async function checkAvailability() {
     .from("rentals")
     .select("quantity")
     .eq("item_id", itemId)
-    // Count Active, Reserved, and Overdue as "taking up inventory"
-    .in("status", ["active", "reserved", "overdue"])
+    // Count Active and Reserved as "taking up inventory"
+    .in("status", ["active", "reserved"])
     // Overlap logic: (StartA <= EndB) and (EndA >= StartB)
     .lte("rent_date", end)
     .gte("return_date", start);
@@ -1089,7 +1154,7 @@ saveRentalBtn?.addEventListener("click", async () => {
             quantity: rental.quantity,
             payment_amount: rental.itemPrice * rental.quantity
           };
-          if (['active', 'reserved', 'overdue'].includes(selectedStatus)) {
+          if (['active', 'reserved'].includes(selectedStatus)) {
             payload.archived = false;
           }
           const item = allItems.find(i => String(i.id) === String(rental.item_id));
@@ -1098,7 +1163,7 @@ saveRentalBtn?.addEventListener("click", async () => {
             .from("rentals")
             .select("quantity")
             .eq("item_id", rental.item_id)
-            .in("status", ["active", "reserved", "overdue"])
+            .in("status", ["active", "reserved"])
             .lte("rent_date", sharedReturnDate)
             .gte("return_date", sharedRentalDate);
           if (rental.id) {
@@ -1176,7 +1241,7 @@ saveRentalBtn?.addEventListener("click", async () => {
             status: selectedStatus
           };
 
-          if (['active', 'reserved', 'overdue'].includes(selectedStatus)) {
+          if (['active', 'reserved'].includes(selectedStatus)) {
             rentalPayload.archived = false;
           }
 
@@ -1190,7 +1255,7 @@ saveRentalBtn?.addEventListener("click", async () => {
             .from("rentals")
             .select("quantity")
             .eq("item_id", cartItem.itemId)
-            .in("status", ["active", "reserved", "overdue"])
+            .in("status", ["active", "reserved"])
             .lte("rent_date", sharedReturnDate)
             .gte("return_date", sharedRentalDate)
             .neq("id", editRentalId); // Exclude current rental
@@ -1279,7 +1344,7 @@ saveRentalBtn?.addEventListener("click", async () => {
               status: selectedStatus
             };
 
-            if (['active', 'reserved', 'overdue'].includes(selectedStatus)) {
+            if (['active', 'reserved'].includes(selectedStatus)) {
               rentalPayload.archived = false;
             }
 
@@ -1291,7 +1356,7 @@ saveRentalBtn?.addEventListener("click", async () => {
               .from("rentals")
               .select("quantity")
               .eq("item_id", cartItem.itemId)
-              .in("status", ["active", "reserved", "overdue"])
+              .in("status", ["active", "reserved"])
               .lte("rent_date", sharedReturnDate)
               .gte("return_date", sharedRentalDate);
 
@@ -1364,7 +1429,7 @@ saveRentalBtn?.addEventListener("click", async () => {
           .from("rentals")
           .select("quantity")
           .eq("item_id", cartItem.itemId)
-          .in("status", ["active", "reserved", "overdue"])
+          .in("status", ["active", "reserved"])
           .lte("rent_date", sharedReturnDate)
           .gte("return_date", sharedRentalDate);
 
@@ -1401,7 +1466,7 @@ saveRentalBtn?.addEventListener("click", async () => {
           status: selectedStatus
         };
 
-        if (['active', 'reserved', 'overdue'].includes(selectedStatus)) {
+        if (['active', 'reserved'].includes(selectedStatus)) {
           rentalPayload.archived = false;
         }
 
@@ -1651,9 +1716,8 @@ function getStatusColor(status) {
   switch (status?.toLowerCase()) {
     case 'active': return '#7bed9f';
     case 'reserved': return '#fff3cd';
-    case 'overdue': return '#f8d7da';
-    case 'returned': return '#e2e3e5';
     case 'cancelled': return '#f8d7da';
+    case 'returned': return '#e2e3e5';
     default: return '#eee';
   }
 }
@@ -1663,7 +1727,6 @@ function getStatusLabel(status) {
     case 'active': return 'Open';
     case 'returned': return 'Closed';
     case 'reserved': return 'Reserved (Future)';
-    case 'overdue': return 'Overdue';
     case 'cancelled': return 'Cancelled';
     default: return status || 'Unknown';
   }

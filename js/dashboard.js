@@ -51,9 +51,9 @@ async function loadDashboardStats() {
     }
     const activeRentalsCount = Object.keys(groupedActiveRentals).length;
 
-    // Pending Returns: Active rentals that are past or on their return date (overdue, exclude archived)
+    // Pending Returns: Active rentals that are past or on their return date (cancelled, exclude archived)
     const today = new Date().toISOString().split('T')[0];
-    const { count: overdueCount } = await supabase
+    const { count: cancelledCount } = await supabase
       .from("rentals")
       .select("*", { count: "exact", head: true })
       .or('archived.is.null,archived.eq.false')
@@ -67,7 +67,7 @@ async function loadDashboardStats() {
 
     if (elTotalRentals) elTotalRentals.textContent = rentalsCount ?? 0;
     if (elItems) elItems.textContent = totalAvailable ?? 0;
-    if (elPending) elPending.textContent = overdueCount ?? 0;
+    if (elPending) elPending.textContent = cancelledCount ?? 0;
     if (elActiveRentals) elActiveRentals.textContent = activeRentalsCount ?? 0;
 
     // 2. Charts
@@ -221,7 +221,7 @@ async function loadDashboardAlerts() {
   try {
     await Promise.all([
       loadLowStockAlert(),
-      loadOverdueAlert(),
+      loadCancelledAlert(),
       loadPendingPaymentsAlert(),
       loadDueSoonAlert()
     ]);
@@ -264,18 +264,18 @@ async function loadLowStockAlert() {
   }
 }
 
-// Overdue Rentals Alert
-async function loadOverdueAlert() {
+// Cancelled Rentals Alert
+async function loadCancelledAlert() {
   try {
-    const { data: overdueRentals } = await supabase
+    const { data: cancelledRentals } = await supabase
       .from("rentals")
       .select("id")
-      .eq("status", "overdue")
+      .eq("status", "cancelled")
       .or('archived.is.null,archived.eq.false');
 
-    const countElement = document.getElementById("overdueCount");
+    const countElement = document.getElementById("cancelledCount");
     if (countElement) {
-      const count = overdueRentals?.length || 0;
+      const count = cancelledRentals?.length || 0;
 
       if (count === 0) {
         countElement.textContent = "None ✓";
@@ -286,7 +286,7 @@ async function loadOverdueAlert() {
       }
     }
   } catch (error) {
-    console.error("Error loading overdue alert:", error);
+    console.error("Error loading cancelled alert:", error);
   }
 }
 

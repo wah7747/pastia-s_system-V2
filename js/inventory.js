@@ -240,7 +240,7 @@ async function loadInventory() {
     const { data: rentals, error: rentalError } = await supabase
         .from("rentals")
         .select("item_id, quantity")
-        .in("status", ["active", "reserved", "overdue"])
+        .in("status", ["active", "reserved"])
         .or('archived.is.null,archived.eq.false');
 
     if (rentalError) {
@@ -569,7 +569,7 @@ async function loadDecorations() {
     const { data: rentals, error: rentalError } = await supabase
         .from("rentals")
         .select("item_id, quantity")
-        .in("status", ["active", "reserved", "overdue"])
+        .in("status", ["active", "reserved"])
         .or('archived.is.null,archived.eq.false');
 
     if (rentalError) {

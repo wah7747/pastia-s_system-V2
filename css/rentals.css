@@ -46,7 +46,7 @@
     max-height: 300px;
     overflow-y: auto;
     z-index: 1000;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     margin-top: -1px;
 }
 
@@ -128,8 +128,54 @@
     background-size: 18px 18px;
 }
 
+
 #rentalItemSearch:focus {
     border-color: #6366f1;
     outline: none;
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+/* Cancel/Reschedule Modal Buttons */
+.reschedule-choice-btn,
+.cancel-choice-btn {
+    padding: 16px 20px;
+    font-size: 15px;
+    border: 2px solid;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+    width: 100%;
+    background: white;
+}
+
+.reschedule-choice-btn {
+    color: #6366f1;
+    border-color: #6366f1;
+}
+
+.reschedule-choice-btn:hover {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.cancel-choice-btn {
+    color: #ef4444;
+    border-color: #fee2e2;
+    background: #fef2f2;
+}
+
+.cancel-choice-btn:hover {
+    background: #ef4444;
+    color: white;
+    border-color: #ef4444;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.reschedule-choice-btn svg,
+.cancel-choice-btn svg {
+    flex-shrink: 0;
 }

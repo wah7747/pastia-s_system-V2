@@ -312,7 +312,7 @@
     background: linear-gradient(to right, rgba(255, 152, 0, 0.02), white);
 }
 
-.overdue-alert {
+.cancelled-alert {
     border-color: #f44336;
     background: linear-gradient(to right, rgba(244, 67, 54, 0.02), white);
 }

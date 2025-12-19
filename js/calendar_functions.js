@@ -90,7 +90,7 @@ function getStatusColor(status) {
     const colors = {
         'active': '#2196F3',      // Blue
         'reserved': '#9C27B0',    // Purple
-        'overdue': '#f44336',     // Red
+        'cancelled': '#f44336',     // Red
         'returned': '#4caf50'     // Green
     };
     return colors[status] || '#666';
