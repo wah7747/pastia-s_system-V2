@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Return History | Pastia's Party Rental</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="css/return_history.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+
+<body>
+    <div class="app-shell">
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-icon"><i data-lucide="party-popper"></i></div>
+                <div>
+                    <p class="brand-name">Pastia's Party Rental</p>
+                    <p class="brand-subtitle">Management System</p>
+                </div>
+            </div>
+
+            <nav class="nav">
+                <a class="nav-item" href="dashboard.html"><i data-lucide="home"></i> Dashboard</a>
+                <a class="nav-item" href="inventory.html"><i data-lucide="package"></i> Inventory</a>
+                <a class="nav-item" href="rentals.html"><i data-lucide="file-text"></i> Rental Transactions</a>
+                <a class="nav-item" href="history.html"><i data-lucide="history"></i> Inventory History</a>
+                <a class="nav-item active" href="return_history.html"><i data-lucide="archive"></i> Return History</a>
+                <a class="nav-item" href="reports.html"><i data-lucide="bar-chart-3"></i> Rental Reports</a>
+                <a class="nav-item" href="users.html"><i data-lucide="users"></i> Users</a>
+            </nav>
+        </aside>
+
+        <main class="content">
+            <header class="page-header">
+                <h1>Return History</h1>
+                <div class="page-right">
+                    <span class="welcome-text"><span id="welcomeUser">Welcome, User</span></span>
+                    <button id="logoutButton" class="logout-btn">Logout</button>
+
+                    <script type="module">
+                        import { logoutUser } from "js/auth.js";
+                        document.getElementById("logoutButton").addEventListener("click", logoutUser);
+                    </script>
+                </div>
+            </header>
+
+            <!-- Analytics Cards -->
+            <div class="analytics-section">
+                <div class="analytics-card">
+                    <div class="card-icon" style="background: #2196F3;">
+                        <i data-lucide="package"></i>
+                    </div>
+                    <div class="card-content">
+                        <p class="card-label">Total Returns</p>
+                        <p class="card-value" id="totalReturns">0</p>
+                    </div>
+                </div>
+
+                <div class="analytics-card">
+                    <div class="card-icon" style="background: #4caf50;">
+                        <i data-lucide="check-circle"></i>
+                    </div>
+                    <div class="card-content">
+                        <p class="card-label">Good Condition</p>
+                        <p class="card-value" id="goodPercentage">0%</p>
+                    </div>
+                </div>
+
+                <div class="analytics-card">
+                    <div class="card-icon" style="background: #FF9800;">
+                        <i data-lucide="alert-triangle"></i>
+                    </div>
+                    <div class="card-content">
+                        <p class="card-label">Damaged Items</p>
+                        <p class="card-value" id="damagedCount">0</p>
+                    </div>
+                </div>
+
+                <div class="analytics-card">
+                    <div class="card-icon" style="background: #f44336;">
+                        <i data-lucide="x-circle"></i>
+                    </div>
+                    <div class="card-content">
+                        <p class="card-label">Missing Items</p>
+                        <p class="card-value" id="missingCount">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters Section -->
+            <div class="filters-section">
+                <div class="filters-container">
+                    <div class="filter-group">
+                        <label for="dateFrom">From:</label>
+                        <input type="date" id="dateFrom">
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="dateTo">To:</label>
+                        <input type="date" id="dateTo">
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="conditionFilter">Condition:</label>
+                        <select id="conditionFilter">
+                            <option value="">All Conditions</option>
+                            <option value="good">Good</option>
+                            <option value="damaged">Damaged</option>
+                            <option value="missing">Missing</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="searchInput">Search:</label>
+                        <input type="text" id="searchInput" placeholder="Client or item name...">
+                    </div>
+
+                    <button id="resetFilters" class="secondary-button">Reset</button>
+                    <button id="exportCSV" class="primary-button">
+                        <i data-lucide="download"></i> Export CSV
+                    </button>
+                </div>
+            </div>
+
+            <!-- Returns Table -->
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Client</th>
+                            <th>Item</th>
+                            <th>Quantity</th>
+                            <th>Condition</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="returnsTableBody">
+                        <!-- Rows will be populated by JavaScript -->
+                    </tbody>
+                </table>
+                <div id="emptyState" class="empty-state" style="display: none;">
+                    <i data-lucide="inbox" style="width: 64px; height: 64px; color: #ccc;"></i>
+                    <p>No returns found</p>
+                    <small>Try adjusting your filters</small>
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            <div class="pagination" id="pagination" style="display: none;">
+                <button id="prevPage" class="pagination-btn" disabled>Previous</button>
+                <span id="pageInfo">Page 1 of 1</span>
+                <button id="nextPage" class="pagination-btn" disabled>Next</button>
+            </div>
+
+        </main>
+    </div>
+
+    <script type="module" src="js/return_history.js"></script>
+</body>
+
+</html>

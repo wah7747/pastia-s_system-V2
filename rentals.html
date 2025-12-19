@@ -32,6 +32,7 @@
         <a class="nav-item" href="inventory.html"><i data-lucide="package"></i> Inventory</a>
         <a class="nav-item active" href="rentals.html"><i data-lucide="file-text"></i> Rental Transactions</a>
         <a class="nav-item" href="history.html"><i data-lucide="history"></i> Inventory History</a>
+        <a class="nav-item" href="return_history.html"><i data-lucide="archive"></i> Return History</a>
         <a class="nav-item" href="reports.html"><i data-lucide="bar-chart-3"></i> Rental Reports</a>
         <a class="nav-item" href="users.html"><i data-lucide="users"></i> Users</a>
       </nav>
@@ -298,8 +299,7 @@
               <label for="paymentMethod">Method</label>
               <select id="paymentMethod">
                 <option value="Cash">Cash</option>
-                <option value="Card">Card</option>
-                <option value="Transfer">Transfer</option>
+                <option value="GCash">GCash</option>
               </select>
             </div>
           </div>
@@ -349,24 +349,60 @@
           style="background:none; border:none; font-size:24px; cursor:pointer;">&times;</button>
       </div>
       <div class="modal-body">
-        <!-- Initial Yes/No choice -->
+        <!-- Initial condition choice -->
         <div id="returnChoiceSection">
           <p style="font-size: 1.1rem; margin-bottom: 2rem; color: #555; text-align: center; line-height: 1.6;">
-            Have all rental items been returned?
+            What is the condition of the returned items?
           </p>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-            <!-- Yes, All Returned Button -->
-            <button id="allReturnedBtn" class="return-choice-btn return-success">
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+            <!-- All Good Button -->
+            <button id="allGoodBtn" class="return-choice-btn return-success">
               <div class="return-icon">✓</div>
-              <div class="return-label">Yes, All Returned</div>
-              <div class="return-sublabel">Mark all items as returned</div>
+              <div class="return-label">All Good</div>
+              <div class="return-sublabel">Perfect condition</div>
             </button>
 
-            <!-- No, Some Missing Button -->
+            <!-- Some Damaged Button -->
+            <button id="someDamagedBtn" class="return-choice-btn return-damaged">
+              <div class="return-icon">⚠</div>
+              <div class="return-label">Some Damaged</div>
+              <div class="return-sublabel">Needs repair</div>
+            </button>
+
+            <!-- Some Missing Button -->
             <button id="someMissingBtn" class="return-choice-btn return-warning">
               <div class="return-icon">✗</div>
-              <div class="return-label">No, Some Missing</div>
-              <div class="return-sublabel">Specify missing items</div>
+              <div class="return-label">Some Missing</div>
+              <div class="return-sublabel">Not returned</div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Damage Details Form (hidden initially) -->
+        <div id="damageDetailsForm" style="display: none;">
+          <h3 style="color: #FF9800; margin-top: 0;">⚠️ Damage Details</h3>
+          <p style="color: #666; font-size: 0.9rem; margin-bottom: 1rem;">
+            For each item below, specify the condition and damage severity.
+          </p>
+          <div id="damageItemsList" style="max-height: 400px; overflow-y: auto;">
+            <!-- Damage items inputs will be generated here -->
+          </div>
+          <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 2px solid #eee;">
+            <label for="damageNotes" style="display: block; margin-bottom: 8px; font-weight: 600;">Damage Description
+              *</label>
+            <textarea id="damageNotes" rows="4"
+              placeholder="Describe the damage (e.g., scratched surface, broken leg, stained fabric)..."
+              style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-family: inherit;"
+              required></textarea>
+          </div>
+          <div style="display: flex; gap: 12px; margin-top: 1rem;">
+            <button id="confirmDamageBtn" class="primary-button"
+              style="flex: 1; padding: 12px 24px; background: #FF9800;">
+              Confirm Damage
+            </button>
+            <button id="cancelDamageFormBtn" class="secondary-button"
+              style="flex: 1; padding: 12px 24px; background: #6c757d;">
+              Go Back
             </button>
           </div>
         </div>

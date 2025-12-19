@@ -2030,12 +2030,20 @@ const missingItemsOverlay = document.getElementById("missingItemsOverlay");
 const cancelMissingItemsBtn = document.getElementById("cancelMissingItemsBtn");
 const returnChoiceSection = document.getElementById("returnChoiceSection");
 const missingItemsForm = document.getElementById("missingItemsForm");
-const allReturnedBtn = document.getElementById("allReturnedBtn");
+const allGoodBtn = document.getElementById("allGoodBtn"); // Updated from allReturnedBtn
+const someDamagedBtn = document.getElementById("someDamagedBtn"); // New
 const someMissingBtn = document.getElementById("someMissingBtn");
 const confirmMissingBtn = document.getElementById("confirmMissingBtn");
 const cancelMissingFormBtn = document.getElementById("cancelMissingFormBtn");
 const missingItemsList = document.getElementById("missingItemsList");
 const missingNotes = document.getElementById("missingNotes");
+
+// Damage form elements (new)
+const damageDetailsForm = document.getElementById("damageDetailsForm");
+const damageItemsList = document.getElementById("damageItemsList");
+const damageNotes = document.getElementById("damageNotes");
+const confirmDamageBtn = document.getElementById("confirmDamageBtn");
+const cancelDamageFormBtn = document.getElementById("cancelDamageFormBtn");
 
 let currentReturnRentalIds = null; // Store rental IDs being marked as returned
 
@@ -2048,9 +2056,22 @@ cancelMissingFormBtn?.addEventListener("click", () => {
   returnChoiceSection.style.display = "block";
 });
 
-allReturnedBtn?.addEventListener("click", async () => {
-  // Mark all items as returned
-  await handleAllReturned();
+cancelDamageFormBtn?.addEventListener("click", () => {
+  // Go back to initial choice
+  damageDetailsForm.style.display = "none";
+  returnChoiceSection.style.display = "block";
+});
+
+allGoodBtn?.addEventListener("click", async () => {
+  // Mark all items as returned in good condition
+  await handleAllGood();
+});
+
+someDamagedBtn?.addEventListener("click", () => {
+  // Show damage details form
+  returnChoiceSection.style.display = "none";
+  damageDetailsForm.style.display = "block";
+  populateDamageItemsForm();
 });
 
 someMissingBtn?.addEventListener("click", () => {
@@ -2058,6 +2079,11 @@ someMissingBtn?.addEventListener("click", () => {
   returnChoiceSection.style.display = "none";
   missingItemsForm.style.display = "block";
   populateMissingItemsForm();
+});
+
+confirmDamageBtn?.addEventListener("click", async () => {
+  // Process damaged items and complete return
+  await handleDamagedReturn();
 });
 
 confirmMissingBtn?.addEventListener("click", async () => {
@@ -2068,11 +2094,14 @@ confirmMissingBtn?.addEventListener("click", async () => {
 function closeMissingItemsModal() {
   missingItemsModal.classList.add("hidden");
   missingItemsModal.setAttribute("aria-hidden", "true");
-  // Reset form
+  // Reset forms
   returnChoiceSection.style.display = "block";
   missingItemsForm.style.display = "none";
+  damageDetailsForm.style.display = "none";  // Reset damage form too
   missingItemsList.innerHTML = "";
   missingNotes.value = "";
+  damageItemsList.innerHTML = "";  // Reset damage list
+  damageNotes.value = "";  // Reset damage notes
   currentReturnRentalIds = null;
 }
 
@@ -2215,8 +2244,8 @@ async function populateMissingItemsForm() {
   });
 }
 
-// Handle "All Returned" - record all items as returned
-async function handleAllReturned() {
+// Handle "All Good" - record all items as returned in perfect condition
+async function handleAllGood() {
   const ids = typeof currentReturnRentalIds === 'string'
     ? (currentReturnRentalIds.startsWith("BATCH:")
       ? currentReturnRentalIds.replace("BATCH:", "").split(',')
@@ -2274,14 +2303,16 @@ async function handleAllReturned() {
         item_name: itemNameMap[rental.item_id] || "Unknown Item",
         quantity: rental.quantity,
         type: "returned",
-        notes: `All items returned by ${rental.renter_name}`
+        notes: `All items returned in perfect condition by ${rental.renter_name}`,
+        return_condition: "good"  // New: track condition
       })),
       ...decorationSales.map(rental => ({
         rental_id: rental.id,
         item_name: itemNameMap[rental.item_id] || "Unknown Item",
         quantity: rental.quantity,
         type: "sold",
-        notes: `Decoration sold to ${rental.renter_name}`
+        notes: `Decoration sold to ${rental.renter_name}`,
+        return_condition: "good"  // New: track condition
       }))
     ];
 
@@ -2447,6 +2478,152 @@ async function handlePartialReturn() {
 
   } catch (err) {
     console.error("Error recording partial return:", err);
+    alert("Error recording return: " + err.message);
+  }
+}
+
+// NEW: Populate damage items form
+async function populateDamageItemsForm() {
+  const ids = typeof currentReturnRentalIds === 'string'
+    ? (currentReturnRentalIds.startsWith("BATCH:")
+      ? currentReturnRentalIds.replace("BATCH:", "").split(',')
+      : currentReturnRentalIds.split(','))
+    : [currentReturnRentalIds];
+
+  // Fetch rental details
+  const { data: rentals, error } = await supabase
+    .from("rentals")
+    .select("id, item_id, quantity, renter_name")
+    .in("id", ids);
+
+  if (error || !rentals || rentals.length === 0) {
+    alert("Error loading rental details");
+    closeMissingItemsModal();
+    return;
+  }
+
+  // Fetch item names
+  const itemIds = [...new Set(rentals.map(r => r.item_id))];
+
+  const { data: inventoryItems } = await supabase
+    .from("inventory_items")
+    .select("id, name")
+    .in("id", itemIds);
+
+  const { data: decorations } = await supabase
+    .from("decorations")
+    .select("id, name")
+    .in("id", itemIds);
+
+  // Create item name map
+  const itemNameMap = {};
+  (inventoryItems || []).forEach(item => itemNameMap[item.id] = item.name);
+  (decorations || []).forEach(item => itemNameMap[item.id] = item.name);
+
+  // Generate damage form for each rental item
+  damageItemsList.innerHTML = rentals.map(rental => {
+    const itemName = itemNameMap[rental.item_id] || "Unknown Item";
+    return `
+      <div style="margin-bottom: 16px; padding: 16px; background: #fff; border: 1px solid #ddd; border-radius: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="flex: 1;">
+            <strong style="font-size: 1rem; color: #333;">${itemName}</strong>
+            <p style="margin: 4px 0; color: #666; font-size: 0.9rem;">Quantity: ${rental.quantity}</p>
+          </div>
+          <select 
+            id="damage_severity_${rental.id}" 
+            data-rental-id="${rental.id}"
+            data-item-name="${itemName}"
+            style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;"
+          >
+            <option value="good">Good Condition</option>
+            <option value="minor" selected>Minor Damage</option>
+            <option value="major">Major Damage</option>
+          </select>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+// NEW: Handle damaged return
+async function handleDamagedReturn() {
+  const damageDescription = damageNotes.value.trim();
+
+  if (!damageDescription) {
+    alert("Please describe the damage before continuing.");
+    return;
+  }
+
+  const ids = typeof currentReturnRentalIds === 'string'
+    ? (currentReturnRentalIds.startsWith("BATCH:")
+      ? currentReturnRentalIds.replace("BATCH:", "").split(',')
+      : currentReturnRentalIds.split(','))
+    : [currentReturnRentalIds];
+
+  try {
+    // Fetch rental details
+    const { data: rentals, error: fetchError } = await supabase
+      .from("rentals")
+      .select("id, item_id, quantity, renter_name")
+      .in("id", ids);
+
+    if (fetchError || !rentals) throw fetchError;
+
+    // Fetch item names
+    const itemIds = rentals.map(r => r.item_id).filter(Boolean);
+    const { data: inventoryItems } = await supabase
+      .from("inventory_items")
+      .select("id, name")
+      .in("id", itemIds);
+
+    const { data: decorationItems } = await supabase
+      .from("decorations")
+      .select("id, name")
+      .in("id", itemIds);
+
+    const itemNameMap = {};
+    (inventoryItems || []).forEach(item => itemNameMap[item.id] = item.name);
+    (decorationItems || []).forEach(item => itemNameMap[item.id] = item.name);
+
+    // Create reports with damage tracking
+    const reports = rentals.map(rental => {
+      const severitySelect = document.getElementById(`damage_severity_${rental.id}`);
+      const severity = severitySelect?.value || "minor";
+
+      return {
+        rental_id: rental.id,
+        item_name: itemNameMap[rental.item_id] || "Unknown Item",
+        quantity: rental.quantity,
+        type: "returned",
+        notes: `Items returned with damage by ${rental.renter_name}`,
+        return_condition: "damaged",
+        damage_notes: `Severity: ${severity.charAt(0).toUpperCase() + severity.slice(1)} - ${damageDescription}`
+      };
+    });
+
+    const { error: insertError } = await supabase
+      .from("reports")
+      .insert(reports);
+
+    if (insertError) throw insertError;
+
+    // Update rental status to "returned"
+    const { error: updateError } = await supabase
+      .from("rentals")
+      .update({ status: "returned" })
+      .in("id", ids);
+
+    if (updateError) throw updateError;
+
+    // Close modals and refresh
+    closeMissingItemsModal();
+    closeModal();
+    loadRentals();
+    alert(`✓ Return recorded! ${rentals.length} item(s) marked as returned with damage.\n⚠️ Damage notes saved for inventory review.`);
+
+  } catch (err) {
+    console.error("Error recording damaged return:", err);
     alert("Error recording return: " + err.message);
   }
 }
