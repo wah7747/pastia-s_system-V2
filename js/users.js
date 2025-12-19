@@ -42,7 +42,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 async function ensureAdmin() {
   const role = currentUser?.role?.toLowerCase?.() ?? "staff";
   if (role !== "admin") {
-    alert("Only admins can access the Users page.");
+    Toast.error("Only admins can access the Users page.");
     window.location.href = "dashboard.html";
   }
 }
@@ -143,7 +143,7 @@ window.editUser = async function (userId) {
     .single();
 
   if (error || !data) {
-    alert("Failed to load user details.");
+    Toast.error("Failed to load user details.");
     return;
   }
 
@@ -162,27 +162,25 @@ window.editUser = async function (userId) {
 window.deleteUser = async function (userId, fullname) {
   // Check permission (defense in depth - page already restricted to admins)
   if (!await canDelete()) {
-    alert("Permission denied. Only Admins can delete users.");
+    Toast.error("Permission denied. Only Admins can delete users.");
     return;
   }
 
-  if (!confirm(`Are you sure you want to delete ${fullname}? This action cannot be undone.`)) {
-    return;
-  }
+  Toast.confirm(`Are you sure you want to delete ${fullname}? This action cannot be undone.`, async () => {
+    const { error } = await supabase
+      .from("profiles")
+      .delete()
+      .eq("id", userId);
 
-  const { error } = await supabase
-    .from("profiles")
-    .delete()
-    .eq("id", userId);
+    if (error) {
+      console.error("Error deleting user:", error);
+      Toast.error(`Failed to delete user: ${error.message}`);
+      return;
+    }
 
-  if (error) {
-    console.error("Error deleting user:", error);
-    alert(`Failed to delete user: ${error.message}`);
-    return;
-  }
-
-  alert(`User ${fullname} has been deleted.`);
-  await loadUsers();
+    Toast.success(`User ${fullname} has been deleted.`);
+    await loadUsers();
+  });
 };
 
 // Save user changes
@@ -193,7 +191,7 @@ document.getElementById("editUserForm")?.addEventListener("submit", async (e) =>
   const role = userRole.value;
 
   if (!fullname) {
-    alert("Please enter a full name.");
+    Toast.warning("Please enter a full name.");
     return;
   }
 
@@ -207,7 +205,7 @@ document.getElementById("editUserForm")?.addEventListener("submit", async (e) =>
 
     if (error) {
       console.error("Error updating user:", error);
-      alert(`Failed to update user: ${error.message}`);
+      Toast.error(`Failed to update user: ${error.message}`);
       return;
     }
 
@@ -215,7 +213,7 @@ document.getElementById("editUserForm")?.addEventListener("submit", async (e) =>
     await loadUsers();
   } catch (err) {
     console.error("Unexpected error:", err);
-    alert(`Error: ${err.message}`);
+    Toast.error(`Error: ${err.message}`);
   } finally {
     saveUserBtn.disabled = false;
   }
@@ -257,7 +255,7 @@ document.getElementById("addUserForm")?.addEventListener("submit", async (e) => 
   const role = document.getElementById("newUserRole").value;
 
   if (!fullname || !email || !password) {
-    alert("Please fill in all fields.");
+    Toast.warning("Please fill in all fields.");
     return;
   }
 
@@ -272,13 +270,13 @@ document.getElementById("addUserForm")?.addEventListener("submit", async (e) => 
 
     if (authError) {
       console.error("Error creating user:", authError);
-      alert(`Failed to create user: ${authError.message}`);
+      Toast.error(`Failed to create user: ${authError.message}`);
       saveNewUserBtn.disabled = false;
       return;
     }
 
     if (!authData.user) {
-      alert("Failed to create user account.");
+      Toast.error("Failed to create user account.");
       saveNewUserBtn.disabled = false;
       return;
     }
@@ -294,17 +292,17 @@ document.getElementById("addUserForm")?.addEventListener("submit", async (e) => 
 
     if (profileError) {
       console.error("Error creating profile:", profileError);
-      alert(`User account created, but failed to set profile: ${profileError.message}`);
+      Toast.error(`User account created, but failed to set profile: ${profileError.message}`);
       saveNewUserBtn.disabled = false;
       return;
     }
 
-    alert(`User ${fullname} created successfully!`);
+    Toast.success(`User ${fullname} created successfully!`);
     closeAddModal();
     await loadUsers();
   } catch (err) {
     console.error("Unexpected error:", err);
-    alert(`Error: ${err.message}`);
+    Toast.error(`Error: ${err.message}`);
   } finally {
     saveNewUserBtn.disabled = false;
   }

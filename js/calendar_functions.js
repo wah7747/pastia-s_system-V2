@@ -99,6 +99,6 @@ function getStatusColor(status) {
 function handleEventClick(info) {
     const rental = info.event.extendedProps.rentalData;
     const message = `Rental Details:\n\nCustomer: ${rental.renter_name}\nDates: ${rental.rent_date} to ${rental.return_date}\nStatus: ${rental.status}\nPayment: ₱${rental.payment_amount}`;
-    alert(message);
+    Toast.info(message);
     // TODO: Open existing rental modal with data for editing
 }

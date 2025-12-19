@@ -2,13 +2,22 @@
 // This module handles the search/autocomplete feature for selecting rental items
 
 export class ItemSearch {
-    constructor() {
+    constructor(config = {}) {
         this.selectedIndex = -1;
-        this.searchInput = document.getElementById('rentalItemSearch');
-        this.searchResults = document.getElementById('itemSearchResults');
-        this.hiddenInput = document.getElementById('rentalItem');
-        this.qtyInput = document.getElementById('rentalQty');
-        this.showAllBtn = document.getElementById('showAllItemsBtn');
+        this.config = config;
+
+        // Element IDs with defaults
+        const searchInputId = config.searchInputId || 'rentalItemSearch';
+        const searchResultsId = config.searchResultsId || 'itemSearchResults';
+        const hiddenInputId = config.hiddenInputId || 'rentalItem';
+        const qtyInputId = config.qtyInputId || 'rentalQty';
+        const showAllBtnId = config.showAllBtnId || 'showAllItemsBtn';
+
+        this.searchInput = document.getElementById(searchInputId);
+        this.searchResults = document.getElementById(searchResultsId);
+        this.hiddenInput = document.getElementById(hiddenInputId);
+        this.qtyInput = document.getElementById(qtyInputId);
+        this.showAllBtn = document.getElementById(showAllBtnId);
         this.allItems = [];
 
         this.init();

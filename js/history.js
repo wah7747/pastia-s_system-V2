@@ -202,45 +202,43 @@ async function deleteHistoryEntry(entryId) {
 
     // Check permission
     if (!userCanDelete) {
-        alert("You don't have permission to delete history entries. Only admins can perform this action.");
+        Toast.error("You don't have permission to delete history entries. Only admins can perform this action.");
         return;
     }
 
-    if (!confirm("Are you sure you want to delete this history entry? This cannot be undone.")) {
-        return;
-    }
+    Toast.confirm("Are you sure you want to delete this history entry? This cannot be undone.", async () => {
+        // Find the entry to determine which table to delete from - use String() for type-safe comparison
+        console.log("Searching for ID:", entryId, "Type:", typeof entryId);
+        console.log("All history IDs:", allHistory.map(function (e) {
+            return { id: e.id, type: typeof e.id, stringMatch: String(e.id) === String(entryId) };
+        }));
 
-    // Find the entry to determine which table to delete from - use String() for type-safe comparison
-    console.log("Searching for ID:", entryId, "Type:", typeof entryId);
-    console.log("All history IDs:", allHistory.map(function (e) {
-        return { id: e.id, type: typeof e.id, stringMatch: String(e.id) === String(entryId) };
-    }));
+        const entry = allHistory.find(function (e) {
+            return String(e.id) === String(entryId);
+        });
 
-    const entry = allHistory.find(function (e) {
-        return String(e.id) === String(entryId);
+        if (!entry) {
+            Toast.error("History entry not found.");
+            console.error("Entry ID not found in allHistory:", entryId, "Available IDs:", allHistory.map(function (e) { return e.id; }));
+            return;
+        }
+
+        const tableName = entry._sourceTable || 'inventory_history';
+
+        const { error } = await supabase
+            .from(tableName)
+            .delete()
+            .eq("id", entryId);
+
+        if (error) {
+            console.error("Error deleting history entry:", error);
+            Toast.error("Failed to delete history entry: " + error.message);
+            return;
+        }
+
+        // Reload history
+        await loadHistory();
     });
-
-    if (!entry) {
-        alert("History entry not found.");
-        console.error("Entry ID not found in allHistory:", entryId, "Available IDs:", allHistory.map(function (e) { return e.id; }));
-        return;
-    }
-
-    const tableName = entry._sourceTable || 'inventory_history';
-
-    const { error } = await supabase
-        .from(tableName)
-        .delete()
-        .eq("id", entryId);
-
-    if (error) {
-        console.error("Error deleting history entry:", error);
-        alert("Failed to delete history entry: " + error.message);
-        return;
-    }
-
-    // Reload history
-    await loadHistory();
 }
 
 // Event handler for delete button clicks

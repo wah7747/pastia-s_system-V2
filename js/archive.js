@@ -47,7 +47,7 @@ async function restoreItem(id) {
         .update({ archived: false })
         .eq('id', id);
     if (error) {
-        alert('Failed to restore item. ' + (error.message || JSON.stringify(error)));
+        Toast.error('Failed to restore item. ' + (error.message || JSON.stringify(error)));
         return;
     }
     await loadArchive();

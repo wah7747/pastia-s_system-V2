@@ -64,7 +64,7 @@ async function loadReturnHistory() {
 
     } catch (err) {
         console.error("Error loading return history:", err);
-        alert("Error loading return history: " + err.message);
+        Toast.error("Error loading return history: " + err.message);
     }
 }
 
@@ -205,7 +205,7 @@ function resetFilters() {
 // Export to CSV
 function exportToCSV() {
     if (filteredReturns.length === 0) {
-        alert("No data to export");
+        Toast.warning("No data to export");
         return;
     }
 

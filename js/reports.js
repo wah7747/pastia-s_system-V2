@@ -57,7 +57,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const notes = document.getElementById("reportNotes").value;
 
     if (!itemName || !quantity || !type) {
-      alert("Please fill required fields (Item Name, Quantity, Type)");
+      Toast.warning("Please fill required fields (Item Name, Quantity, Type)");
       return;
     }
 
@@ -76,7 +76,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       closeModal();
       loadIncidentReports();
     } catch (err) {
-      alert("Error saving report: " + err.message);
+      Toast.error("Error saving report: " + err.message);
     } finally {
       saveBtn.disabled = false;
     }
@@ -309,28 +309,26 @@ window.deleteReport = async (reportId) => {
 
   if (!profile || profile.role?.toLowerCase() !== 'admin') {
     console.error("Permission denied - Role:", profile?.role); // Debug log
-    alert("Permission denied. Only Admins can delete reports.");
+    Toast.error("Permission denied. Only Admins can delete reports.");
     return;
   }
 
-  if (!confirm("Are you sure you want to delete this report? This cannot be undone.")) {
-    return;
-  }
+  Toast.confirm("Are you sure you want to delete this report? This cannot be undone.", async () => {
+    try {
+      const { error } = await supabase
+        .from("reports")
+        .delete()
+        .eq("id", reportId);
 
-  try {
-    const { error } = await supabase
-      .from("reports")
-      .delete()
-      .eq("id", reportId);
+      if (error) throw error;
 
-    if (error) throw error;
-
-    alert("Report deleted successfully.");
-    loadIncidentReports();
-  } catch (err) {
-    console.error("Error deleting report:", err);
-    alert("Error deleting report: " + err.message);
-  }
+      Toast.success("Report deleted successfully.");
+      loadIncidentReports();
+    } catch (err) {
+      console.error("Error deleting report:", err);
+      Toast.error("Error deleting report: " + err.message);
+    }
+  });
 };
 
 // Delete grouped reports function
@@ -339,39 +337,37 @@ window.deleteReportGroup = async (idsString) => {
   const profile = await getCurrentUserProfile();
 
   if (!profile || profile.role?.toLowerCase() !== 'admin') {
-    alert("Permission denied. Only Admins can delete reports.");
+    Toast.error("Permission denied. Only Admins can delete reports.");
     return;
   }
 
   const ids = idsString.split(',');
   const count = ids.length;
 
-  if (!confirm(`Are you sure you want to delete ${count} report(s)? This cannot be undone.`)) {
-    return;
-  }
+  Toast.confirm(`Are you sure you want to delete ${count} report(s)? This cannot be undone.`, async () => {
+    try {
+      let successCount = 0;
+      for (const id of ids) {
+        const { error } = await supabase
+          .from("reports")
+          .delete()
+          .eq("id", id);
 
-  try {
-    let successCount = 0;
-    for (const id of ids) {
-      const { error } = await supabase
-        .from("reports")
-        .delete()
-        .eq("id", id);
-
-      if (!error) {
-        successCount++;
+        if (!error) {
+          successCount++;
+        }
       }
-    }
 
-    if (successCount > 0) {
-      alert(`Successfully deleted ${successCount} out of ${count} report(s).`);
-      loadIncidentReports();
-    } else {
-      alert("Could not delete reports.");
+      if (successCount > 0) {
+        Toast.success(`Successfully deleted ${successCount} out of ${count} report(s).`);
+        loadIncidentReports();
+      } else {
+        Toast.error("Could not delete reports.");
+      }
+    } catch (err) {
+      console.error("Error deleting reports:", err);
+      Toast.error("Error deleting reports: " + err.message);
     }
-  } catch (err) {
-    console.error("Error deleting reports:", err);
-    alert("Error deleting reports: " + err.message);
-  }
+  });
 };
 

@@ -456,7 +456,7 @@ function addItemToCart() {
   const days = calculateRentalDays(rentalDate.value, returnDate.value);
 
   if (!itemId || qty <= 0) {
-    alert("Please select an item and enter a valid quantity");
+    Toast.warning("Please select an item and enter a valid quantity");
     return;
   }
 
@@ -476,7 +476,7 @@ function addItemToCart() {
 
   const item = allItems.find(i => String(i.id) === String(itemId));
   if (!item) {
-    alert("Item not found");
+    Toast.error("Item not found");
     console.error("Item not found for ID:", itemId, "Available items:", allItems.map(i => ({ id: i.id, name: i.name })));
     return;
   }
@@ -528,11 +528,11 @@ function addItemToCart() {
 }
 
 function removeItemFromCart(index) {
-  if (confirm("Remove this item from cart?")) {
+  Toast.confirm("Remove this item from cart?", () => {
     cartItems.splice(index, 1);
     renderCartItems();
     calculateCartTotal();
-  }
+  });
 }
 
 function renderCartItems() {
@@ -687,7 +687,7 @@ function recalculateCartDays() {
     }
   } catch (error) {
     console.error("Error recalculating cart days:", error);
-    alert("Error updating cart with new dates. Please try again.");
+    Toast.error("Error updating cart with new dates. Please try again.");
   }
 }
 
@@ -742,7 +742,7 @@ window.archiveRental = async (id) => {
 window.deleteRental = async (id) => {
   // Check permission
   if (!await canDelete()) {
-    alert("Permission denied. Only Admins can delete rentals.");
+    Toast.error("Permission denied. Only Admins can delete rentals.");
     return;
   }
 
@@ -778,7 +778,7 @@ rescheduleBtn?.addEventListener('click', async () => {
     .single();
 
   if (error || !rental) {
-    alert('Error loading rental data');
+    Toast.error('Error loading rental data');
     return;
   }
 
@@ -794,13 +794,12 @@ cancelCompletelyBtn?.addEventListener('click', async () => {
 
   if (!pendingCancelRentalId) return;
 
-  if (!confirm("Are you sure you want to move this reservation to archive? It will be removed from the active list.")) {
+  Toast.confirm("Are you sure you want to move this reservation to archive? It will be removed from the active list.", async () => {
+    await archiveRentalCompletely(pendingCancelRentalId);
     pendingCancelRentalId = null;
-    return;
-  }
-
-  await archiveRentalCompletely(pendingCancelRentalId);
-  pendingCancelRentalId = null;
+  }, () => {
+    pendingCancelRentalId = null;
+  });
 });
 
 // Close modal handlers
@@ -815,9 +814,9 @@ async function archiveRentalCompletely(id) {
     .eq("id", id);
 
   if (error) {
-    alert("Error archiving rental: " + error.message);
+    Toast.error("Error archiving rental: " + error.message);
   } else {
-    alert("Rental moved to archive successfully.");
+    Toast.success("Rental moved to archive successfully.");
     loadRentals();
   }
 }
@@ -826,73 +825,75 @@ async function archiveRentalCompletely(id) {
 window.archiveRentalGroup = async (idsString) => {
   // Check permission
   if (!await canDelete()) {
-    alert("Permission denied. Only Admins can delete rentals.");
+    Toast.error("Permission denied. Only Admins can delete rentals.");
     return;
   }
 
   const ids = idsString.split(',');
   const count = ids.length;
 
-  if (!confirm(`Are you sure you wish to put ${count === 1 ? 'this rental' : count + ' rentals'} in the archive ? This will move ${count === 1 ? 'it' : 'them'} to history.`)) return;
+  Toast.confirm(`Are you sure you wish to put ${count === 1 ? 'this rental' : count + ' rentals'} in the archive ? This will move ${count === 1 ? 'it' : 'them'} to history.`, async () => {
+    let successCount = 0;
+    for (const id of ids) {
+      const { error } = await supabase
+        .from("rentals")
+        .update({ archived: true })
+        .eq("id", id);
 
-  let successCount = 0;
-  for (const id of ids) {
-    const { error } = await supabase
-      .from("rentals")
-      .update({ archived: true })
-      .eq("id", id);
-
-    if (!error) successCount++;
-  }
-
-  if (successCount > 0) {
-    loadRentals();
-    if (successCount < count) {
-      alert(`Archived ${successCount} out of ${count} rental(s)`);
+      if (!error) successCount++;
     }
-  } else {
-    alert("Error archiving rentals");
-  }
+
+    if (successCount > 0) {
+      loadRentals();
+      if (successCount < count) {
+        Toast.success(`Archived ${successCount} out of ${count} rental(s)`);
+      } else {
+        Toast.success("Rental(s) moved to archive successfully.");
+      }
+    } else {
+      Toast.error("Error archiving rentals");
+    }
+  });
 };
 
 // Expose delete group function for grouped rentals
 window.deleteRentalGroup = async (idsString) => {
   // Check permission
   if (!await canDelete()) {
-    alert("Permission denied. Only Admins can delete rentals.");
+    Toast.error("Permission denied. Only Admins can delete rentals.");
     return;
   }
 
   const ids = idsString.split(',');
   const count = ids.length;
 
-  if (!confirm(`Are you sure you want to DELETE ${count} rental(s) permanently ? This cannot be undone.`)) return;
+  Toast.confirm(`Are you sure you want to DELETE ${count} rental(s) permanently ? This cannot be undone.`, async () => {
+    try {
+      let successCount = 0;
+      for (const id of ids) {
+        const { error, count: delCount } = await supabase
+          .from("rentals")
+          .delete({ count: 'exact' })
+          .eq("id", id);
 
-  try {
-    let successCount = 0;
-    for (const id of ids) {
-      const { error, count: delCount } = await supabase
-        .from("rentals")
-        .delete({ count: 'exact' })
-        .eq("id", id);
-
-      if (!error && delCount > 0) {
-        successCount++;
-      } else if (error && error.code === '23503') {
-        alert(`Cannot delete rental ${id} because it has linked Reports.Please delete the reports first.`);
+        if (!error && delCount > 0) {
+          successCount++;
+        } else if (error && error.code === '23503') {
+          Toast.error(`Cannot delete rental ${id} because it has linked Reports. Please delete the reports first.`);
+        }
       }
-    }
 
-    if (successCount > 0) {
-      alert(`Successfully deleted ${successCount} out of ${count} rental(s).`);
-      loadRentals();
-    } else {
-      alert("Could not delete rentals. They may have linked reports.");
+      if (successCount > 0) {
+        Toast.success(`Successfully deleted ${successCount} out of ${count} rental(s).`);
+        loadRentals();
+      } else {
+        Toast.error("Could not delete rentals. They may have linked reports.");
+      }
+    } catch (err) {
+      console.error("Unexpected error:", err);
+      Toast.error("An unexpected error occurred.");
     }
-  } catch (err) {
-    console.error("Unexpected error:", err);
-    alert("An unexpected error occurred.");
-  }
+  });
 };
 
 // Expose view details function globally
@@ -907,7 +908,7 @@ id, item_id, renter_name, quantity, rent_date, return_date,
     .single();
 
   if (error || !data) {
-    alert("Error loading rental details");
+    Toast.error("Error loading rental details");
     return;
   }
 
@@ -1156,7 +1157,7 @@ saveRentalBtn?.addEventListener("click", async () => {
 
   // Validate required common fields
   if (!sharedClientName || !sharedRentalDate) {
-    alert("Please fill in client name and rental date");
+    Toast.warning("Please fill in client name and rental date");
     return;
   }
 
@@ -1164,7 +1165,7 @@ saveRentalBtn?.addEventListener("click", async () => {
   if (customPriceCheckbox?.checked) {
     const customPrice = parseFloat(paymentAmount.value) || 0;
     if (customPrice <= 0) {
-      alert("Please enter a valid custom price greater than ₱0");
+      Toast.warning("Please enter a valid custom price greater than ₱0");
       return;
     }
   }
@@ -1183,7 +1184,7 @@ saveRentalBtn?.addEventListener("click", async () => {
     if (editRentalId && typeof editRentalId === 'string' && editRentalId.startsWith("BATCH:")) {
       const originalIds = editRentalId.replace("BATCH:", "").split(',');
       if (batchEditRentals.length === 0) {
-        alert("At least one item is required");
+        Toast.warning("At least one item is required");
         saveRentalBtn.disabled = false;
         return;
       }
@@ -1225,7 +1226,7 @@ saveRentalBtn?.addEventListener("click", async () => {
           const currentlyRented = overlapping ? overlapping.reduce((sum, r) => sum + (r.quantity || 0), 0) : 0;
           const available = item.quantity_total - currentlyRented;
           if (available < rental.quantity) {
-            alert(`Insufficient inventory for ${rental.itemName}.Only ${available} available, but ${rental.quantity} requested.`);
+            Toast.error(`Insufficient inventory for ${rental.itemName}. Only ${available} available, but ${rental.quantity} requested.`);
             saveRentalBtn.disabled = false;
             return;
           }
@@ -1252,9 +1253,9 @@ saveRentalBtn?.addEventListener("click", async () => {
         let message = "Batch rental updated successfully!";
         if (insertCount > 0) message += `\n - ${insertCount} item(s) added`;
         if (deleteCount > 0) message += `\n - ${deleteCount} item(s) removed`;
-        alert(message);
+        Toast.success(message);
       } catch (err) {
-        alert("Error updating batch rental: " + err.message);
+        Toast.error("Error updating batch rental: " + err.message);
         console.error(err);
         saveRentalBtn.disabled = false;
       }
@@ -1265,7 +1266,7 @@ saveRentalBtn?.addEventListener("click", async () => {
     if (editRentalId) {
       // Use cart-based editing (same as creating new rentals)
       if (cartItems.length === 0) {
-        alert("Please add at least one item to the cart");
+        Toast.warning("Please add at least one item to the cart");
         saveRentalBtn.disabled = false;
         return;
       }
@@ -1318,7 +1319,7 @@ saveRentalBtn?.addEventListener("click", async () => {
           const available = item.quantity_total - currentlyRented;
 
           if (available < cartItem.quantity) {
-            alert(`Insufficient inventory for ${cartItem.itemName}.Only ${available} available.`);
+            Toast.error(`Insufficient inventory for ${cartItem.itemName}. Only ${available} available.`);
             saveRentalBtn.disabled = false;
             return;
           }
@@ -1333,7 +1334,7 @@ saveRentalBtn?.addEventListener("click", async () => {
 
           closeModal();
           loadRentals();
-          alert("Rental updated successfully!");
+          Toast.success("Rental updated successfully!");
 
         } else {
           // COMPLEX EDIT: User is changing items (adding/removing from cart)
@@ -1353,11 +1354,7 @@ saveRentalBtn?.addEventListener("click", async () => {
 
           if (linkedReports && linkedReports.length > 0) {
             // This rental has linked incident reports, cannot delete it
-            alert("Cannot modify items for this rental because it has linked Incident Reports.\n\n" +
-              "You can either:\n" +
-              "• Edit the rental details without changing the item (cancel and reopen)\n" +
-              "• Delete the incident reports first, then edit this rental\n\n" +
-              "This protects data integrity and prevents orphaned reports.");
+            Toast.error("Cannot modify items: Linked Incident Reports detected.\n\nPlease delete reports first or edit without changing items to prevent data issues.");
             saveRentalBtn.disabled = false;
             return;
           }
@@ -1371,8 +1368,7 @@ saveRentalBtn?.addEventListener("click", async () => {
           if (deleteError) {
             // Check if it's a foreign key constraint error
             if (deleteError.code === '23503') {
-              alert("Cannot modify items: This rental has linked Incident Reports.\n\n" +
-                "Please delete the reports first or edit without changing items.");
+              Toast.error("Cannot modify items: Linked Incident Reports detected.\n\nPlease delete reports first or edit without changing items.");
             } else {
               throw deleteError;
             }
@@ -1419,7 +1415,7 @@ saveRentalBtn?.addEventListener("click", async () => {
             const available = item.quantity_total - currentlyRented;
 
             if (available < cartItem.quantity) {
-              alert(`Insufficient inventory for ${cartItem.itemName}.Only ${available} available.`);
+              Toast.error(`Insufficient inventory for ${cartItem.itemName}. Only ${available} available.`);
               saveRentalBtn.disabled = false;
               return;
             }
@@ -1453,10 +1449,10 @@ saveRentalBtn?.addEventListener("click", async () => {
           closeModal();
           loadRentals();
           refreshCalendar(); // Refresh calendar view
-          alert(`Rental updated successfully! ${createdRentals.length} item(s) in transaction.`);
+          Toast.success(`Rental updated successfully! ${createdRentals.length} item(s) in transaction.`);
         }
       } catch (err) {
-        alert("Error updating rental: " + err.message);
+        Toast.error("Error updating rental: " + err.message);
         console.error(err);
         saveRentalBtn.disabled = false;
       }
@@ -1466,7 +1462,7 @@ saveRentalBtn?.addEventListener("click", async () => {
     // NEW RENTAL MODE - create multiple rentals from cart
     else {
       if (cartItems.length === 0) {
-        alert("Please add at least one item to the cart");
+        Toast.warning("Please add at least one item to the cart");
         saveRentalBtn.disabled = false;
         return;
       }
@@ -1493,12 +1489,12 @@ saveRentalBtn?.addEventListener("click", async () => {
 
         if (availableForDates < cartItem.quantity) {
           allAvailable = false;
-          unavailableItems.push(`${cartItem.itemName} (need ${cartItem.quantity}, only ${availableForDates} available)`);
+          unavailableItems.push(`${cartItem.itemName}(need ${cartItem.quantity}, only ${availableForDates} available)`);
         }
       }
 
       if (!allAvailable) {
-        alert(`Cannot create rental - insufficient inventory for: \n\n${unavailableItems.join('\n')} `);
+        Toast.error(`Cannot create rental - insufficient inventory for:\n\n${unavailableItems.join('\n')}`);
         saveRentalBtn.disabled = false;
         return;
       }
@@ -1556,10 +1552,10 @@ saveRentalBtn?.addEventListener("click", async () => {
       closeModal();
       loadRentals();
       refreshCalendar(); // Refresh calendar view
-      alert(`Successfully created ${createdRentals.length} rental(s) for ${sharedClientName}!`);
+      Toast.success(`Successfully created ${createdRentals.length} rental(s) for ${sharedClientName}!`);
     }
   } catch (err) {
-    alert("Error saving rental: " + err.message);
+    Toast.error("Error saving rental: " + err.message);
     console.error(err);
   } finally {
     saveRentalBtn.disabled = false;
@@ -1674,21 +1670,21 @@ async function loadRentals() {
     const actionButtons = showArchived
       ? (isAdmin
         ? `
-<button onclick="viewRentalDetails('${group.rentalIds[0]}')" class="btn-action" title="View Details" style="padding: 6px 12px; margin: 2px; background: #2196F3; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">👁️ View</button>
-<button onclick="deleteRentalGroup('${group.rentalIds.join(',')}')" class="btn-action admin-only" title="Delete" style="padding: 6px 12px; margin: 2px; background: #f44336; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">🗑️ Delete</button>
+  <button onclick="viewRentalDetails('${group.rentalIds[0]}')" class="btn-action" title="View Details" style="padding: 6px 12px; margin: 2px; background: #2196F3; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">👁️ View</button>
+    <button onclick="deleteRentalGroup('${group.rentalIds.join(',')}')" class="btn-action admin-only" title="Delete" style="padding: 6px 12px; margin: 2px; background: #f44336; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">🗑️ Delete</button>
 `
         : `
-<button onclick="viewRentalDetails('${group.rentalIds[0]}')" class="btn-action" title="View Details" style="padding: 6px 12px; margin: 2px; background: #2196F3; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">👁️ View</button>
-<span style="color: #999; font-size: 0.85em; font-style: italic;">No permission</span>
+  <button onclick="viewRentalDetails('${group.rentalIds[0]}')" class="btn-action" title="View Details" style="padding: 6px 12px; margin: 2px; background: #2196F3; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">👁️ View</button>
+    <span style="color: #999; font-size: 0.85em; font-style: italic;">No permission</span>
 `)
       : (isAdmin
         ? `
-<button onclick="editRental('${editIds}')" class="btn-action btn-action-edit" title="${isMultiItem ? 'Edit Group' : 'Edit'}">✏️ Edit</button>
-<button onclick="archiveRentalGroup('${group.rentalIds.join(',')}')" class="btn-action btn-action-delete" title="Delete">🗑️ Delete</button>
+  <button onclick="editRental('${editIds}')" class="btn-action btn-action-edit" title="${isMultiItem ? 'Edit Group' : 'Edit'}">✏️ Edit</button>
+    <button onclick="archiveRentalGroup('${group.rentalIds.join(',')}')" class="btn-action btn-action-delete" title="Delete">🗑️ Delete</button>
 `
         : `
-<button onclick="editRental('${editIds}')" class="btn-action btn-action-edit" title="${isMultiItem ? 'Edit Group' : 'Edit'}">✏️ Edit</button>
-<span style="color: #999; font-size: 0.85em; font-style: italic;">No permission</span>
+  <button onclick="editRental('${editIds}')" class="btn-action btn-action-edit" title="${isMultiItem ? 'Edit Group' : 'Edit'}">✏️ Edit</button>
+    <span style="color: #999; font-size: 0.85em; font-style: italic;">No permission</span>
 `);
 
     // Create client display with tooltip on click
@@ -1809,7 +1805,7 @@ async function fetchRentalsAndOpenModal(idsString) {
     .in("id", ids);
 
   if (error || !rentals || rentals.length === 0) {
-    alert("Error loading rental details");
+    Toast.error("Error loading rental details");
     return;
   }
 
@@ -1854,10 +1850,13 @@ function openBatchEditModal(rentals) {
   <div id="batchItemsContent"></div>
   <div id="addItemToBatch" style="margin-top: 1rem; padding-top: 1rem; border-top: 2px dashed #2196F3;">
     <h5 style="margin-top: 0; color: #2196F3;">Add New Item:</h5>
-    <div style="display: flex; gap: 8px; align-items: center;">
-      <select id="batchNewItem" style="flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-        <option value="">-- Select Item --</option>
-      </select>
+    <div style="display: flex; gap: 8px; align-items: flex-start;">
+      <div style="position: relative; flex: 1;">
+        <input type="text" id="batchNewItemSearch" placeholder="Search item..." autocomplete="off" style="width: 100%; padding: 8px; padding-right: 30px; border: 1px solid #ccc; border-radius: 4px;">
+        <button type="button" id="batchShowAllItemsBtn" style="position: absolute; right: 4px; top: 11px; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #666; font-size: 12px;">▼</button>
+        <div id="batchItemSearchResults" class="search-dropdown hidden"></div>
+        <input type="hidden" id="batchNewItem" value="">
+      </div>
       <input type="number" id="batchNewQty" min="1" value="1" style="width: 80px; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" />
       <button onclick="addItemToBatchRental()" style="padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
         ➞ Add
@@ -1868,6 +1867,18 @@ function openBatchEditModal(rentals) {
 `;
     rentalItem.parentElement.parentElement.insertAdjacentHTML('afterend', itemsHTML);
     batchItemsList = document.getElementById("batchItemsList");
+
+    // Initialize Item Search for Batch Modal
+    if (typeof allItems !== 'undefined') {
+      window.batchItemSearch = new ItemSearch({
+        searchInputId: 'batchNewItemSearch',
+        searchResultsId: 'batchItemSearchResults',
+        hiddenInputId: 'batchNewItem',
+        qtyInputId: 'batchNewQty',
+        showAllBtnId: 'batchShowAllItemsBtn'
+      });
+      window.batchItemSearch.setItems(allItems);
+    }
   }
 
   batchItemsList.style.display = "block";
@@ -2004,7 +2015,7 @@ function renderBatchEditItems() {
 window.updateBatchItemQuantity = function (index, newQty) {
   const qty = parseInt(newQty) || 1;
   if (qty < 1) {
-    alert("Quantity must be at least 1");
+    Toast.warning("Quantity must be at least 1");
     renderBatchEditItems();
     return;
   }
@@ -2015,33 +2026,53 @@ window.updateBatchItemQuantity = function (index, newQty) {
 // NEW: Remove item
 window.removeItemFromBatchRental = function (index) {
   if (batchEditRentals.length === 1) {
-    alert("Cannot remove the last item. At least one item is required.");
+    Toast.warning("Cannot remove the last item. At least one item is required.");
     return;
   }
   const itemName = batchEditRentals[index].itemName;
-  if (confirm(`Remove "` + itemName + `" ? `)) {
+  Toast.confirm(`Remove "${itemName}" ?`, () => {
     batchEditRentals.splice(index, 1);
     renderBatchEditItems();
-  }
+  });
 };
 
+// NEW: Add item
 // NEW: Add item
 window.addItemToBatchRental = async function () {
   const newItemId = document.getElementById("batchNewItem").value;
   const newQty = parseInt(document.getElementById("batchNewQty").value) || 1;
-  if (!newItemId) { alert("Please select an item"); return; }
 
-  const existingIndex = batchEditRentals.findIndex(r => String(r.item_id) === String(newItemId));
-  if (existingIndex >= 0) {
-    if (confirm(`Item exists.Increase quantity by` + newQty + ` ? `)) {
-      batchEditRentals[existingIndex].quantity += newQty;
-      renderBatchEditItems();
-    }
+  if (!newItemId) {
+    Toast.warning("Please select an item");
     return;
   }
 
-  const item = allItems.find(i => String(i.id) === String(newItemId));
-  if (!item) { alert("Item not found"); return; }
+  const existingIndex = batchEditRentals.findIndex(r => String(r.item_id) === String(newItemId));
+  if (existingIndex >= 0) {
+    // Determine the item name for the message
+    const existingItemName = batchEditRentals[existingIndex].itemName || "Item";
+    Toast.confirm(`${existingItemName} exists in this rental.\nIncrease quantity by ${newQty}?`, () => {
+      batchEditRentals[existingIndex].quantity += newQty;
+      renderBatchEditItems();
+
+      // Clear inputs
+      if (window.batchItemSearch) {
+        window.batchItemSearch.clear();
+      } else {
+        document.getElementById("batchNewItem").value = "";
+      }
+      document.getElementById("batchNewQty").value = 1;
+    });
+    return;
+  }
+
+  // Find item details
+  const item = typeof allItems !== 'undefined' ? allItems.find(i => String(i.id) === String(newItemId)) : null;
+
+  if (!item) {
+    Toast.error("Item details not found");
+    return;
+  }
 
   const firstRental = batchEditRentals[0];
   batchEditRentals.push({
@@ -2058,8 +2089,14 @@ window.addItemToBatchRental = async function () {
     status: firstRental.status,
     payment_amount: 0
   });
+
   renderBatchEditItems();
-  document.getElementById("batchNewItem").value = "";
+
+  if (window.batchItemSearch) {
+    window.batchItemSearch.clear();
+  } else {
+    document.getElementById("batchNewItem").value = "";
+  }
   document.getElementById("batchNewQty").value = 1;
 };
 
@@ -2192,7 +2229,7 @@ async function populateMissingItemsForm() {
     .in("id", ids);
 
   if (error || !rentals || rentals.length === 0) {
-    alert("Error loading rental details");
+    Toast.error("Error loading rental details");
     closeMissingItemsModal();
     return;
   }
@@ -2391,11 +2428,11 @@ async function handleAllGood() {
     closeMissingItemsModal();
     closeModal();
     loadRentals();
-    alert(`✓ Return recorded successfully! All ${rentals.length} item(s) marked as returned.`);
+    Toast.success(`Return recorded successfully! All ${rentals.length} item(s) marked as returned.`);
 
   } catch (err) {
     console.error("Error recording return:", err);
-    alert("Error recording return: " + err.message);
+    Toast.error("Error recording return: " + err.message);
   }
 }
 
@@ -2463,7 +2500,7 @@ async function handlePartialReturn() {
     }
 
     if (reports.length === 0) {
-      alert("Please specify item quantities");
+      Toast.warning("Please specify item quantities");
       return;
     }
 
@@ -2524,18 +2561,17 @@ async function handlePartialReturn() {
     closeModal();
     loadRentals();
 
-    let message = "✓ Return recorded successfully!";
+    let message = "Return recorded successfully!";
     if (returnedCount > 0) message += `\n${returnedCount} item(s) marked as returned.`;
     if (missingCount > 0) {
       message += `\n${missingCount} item(s) marked as missing.`;
-      message += `
-⚠️ Inventory reduced by ${totalMissingQty} unit(s).`;
+      message += `\n⚠️ Inventory reduced by ${totalMissingQty} unit(s).`;
     }
-    alert(message);
+    Toast.success(message);
 
   } catch (err) {
     console.error("Error recording partial return:", err);
-    alert("Error recording return: " + err.message);
+    Toast.error("Error recording return: " + err.message);
   }
 }
 
@@ -2554,7 +2590,7 @@ async function populateDamageItemsForm() {
     .in("id", ids);
 
   if (error || !rentals || rentals.length === 0) {
-    alert("Error loading rental details");
+    Toast.error("Error loading rental details");
     closeMissingItemsModal();
     return;
   }
@@ -2608,7 +2644,7 @@ async function handleDamagedReturn() {
   const damageDescription = damageNotes.value.trim();
 
   if (!damageDescription) {
-    alert("Please describe the damage before continuing.");
+    Toast.warning("Please describe the damage before continuing.");
     return;
   }
 
@@ -2677,11 +2713,11 @@ async function handleDamagedReturn() {
     closeMissingItemsModal();
     closeModal();
     loadRentals();
-    alert(`✓ Return recorded! ${rentals.length} item(s) marked as returned with damage.\n⚠️ Damage notes saved for inventory review.`);
+    Toast.success(`Return recorded! ${rentals.length} item(s) marked as returned with damage.\n⚠️ Damage notes saved for inventory review.`);
 
   } catch (err) {
     console.error("Error recording damaged return:", err);
-    alert("Error recording return: " + err.message);
+    Toast.error("Error recording return: " + err.message);
   }
 }
 
@@ -2796,7 +2832,7 @@ async function refreshCalendar() {
 
 function handleEventClick(info) {
   const rental = info.event.extendedProps.rentalData;
-  const message = `Rental Details:\n\nCustomer: ${rental.renter_name}\nDates: ${rental.rent_date} to ${rental.return_date}\nStatus: ${rental.status}\nPayment: ₱${rental.payment_amount}`;
-  alert(message);
+  const message = `Rental Details:\n\nCustomer: ${rental.renter_name}\nDates: ${rental.rent_date} to ${rental.return_date}\nStatus: ${rental.status.toUpperCase()}\nPayment: ₱${rental.payment_amount}`;
+  Toast.info(message);
   // TODO: Open existing rental modal with data for editing
 }

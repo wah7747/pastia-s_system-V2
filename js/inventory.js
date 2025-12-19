@@ -128,22 +128,22 @@ saveItemBtn?.addEventListener("click", async () => {
     const rentalPrice = parseFloat(itemRentalPrice.value) || 0;
 
     if (!name || !category || isNaN(total)) {
-        alert("Please fill all required fields correctly.");
+        Toast.warning("Please fill all required fields correctly.");
         return;
     }
 
     if (total < 0) {
-        alert("Total quantity cannot be negative.");
+        Toast.warning("Total quantity cannot be negative.");
         return;
     }
 
     if (damaged < 0) {
-        alert("Damaged quantity cannot be negative.");
+        Toast.warning("Damaged quantity cannot be negative.");
         return;
     }
 
     if (damaged > total) {
-        alert("Damaged quantity cannot exceed total quantity.");
+        Toast.warning("Damaged quantity cannot exceed total quantity.");
         return;
     }
 
@@ -165,7 +165,7 @@ saveItemBtn?.addEventListener("click", async () => {
             const { data, error } = await supabase.from("inventory_items").update(payload).eq('id', editItemId).select();
             if (error) {
                 console.error("Update error:", error);
-                alert(`Failed to update item. ${error.message || JSON.stringify(error)}`);
+                Toast.error(`Failed to update item. ${error.message || JSON.stringify(error)}`);
                 return;
             }
 
@@ -189,7 +189,7 @@ saveItemBtn?.addEventListener("click", async () => {
             const { data, error } = await supabase.from("inventory_items").insert(payload).select();
             if (error) {
                 console.error("Insert error:", error);
-                alert(`Failed to add item. ${error.message || JSON.stringify(error)}`);
+                Toast.error(`Failed to add item. ${error.message || JSON.stringify(error)}`);
                 return;
             }
 
@@ -206,7 +206,7 @@ saveItemBtn?.addEventListener("click", async () => {
         await loadInventory();
     } catch (err) {
         console.error("Unexpected error while saving item:", err);
-        alert(`Unexpected error: ${err.message || JSON.stringify(err)}`);
+        Toast.error(`Unexpected error: ${err.message || JSON.stringify(err)}`);
     } finally {
         saveItemBtn.disabled = false;
     }
@@ -329,15 +329,15 @@ tbody.addEventListener('click', async (e) => {
         openEditItemModal(id);
     } else if (delBtn) {
         const id = delBtn.getAttribute('data-id');
-        if (confirm('Delete this item?')) {
+        Toast.confirm('Delete this item?', async () => {
             await deleteItem(id);
-        }
+        });
     }
 });
 
 async function openEditItemModal(id) {
     const item = currentData.find(d => String(d.id) === String(id));
-    if (!item) return alert('Item not found');
+    if (!item) { Toast.error('Item not found'); return; }
     editItemId = item.id;
     itemName.value = item.name || '';
     itemCategory.value = item.category || '';
@@ -351,7 +351,7 @@ async function openEditItemModal(id) {
 async function deleteItem(id) {
     // Check permission
     if (!await canDelete()) {
-        alert("Permission denied. Only Admins can delete items.");
+        Toast.error("Permission denied. Only Admins can delete items.");
         return;
     }
 
@@ -364,7 +364,7 @@ async function deleteItem(id) {
             .update({ archived: true })
             .eq('id', id);
         if (error) {
-            alert('Failed to archive item. ' + (error.message || JSON.stringify(error)));
+            Toast.error('Failed to archive item. ' + (error.message || JSON.stringify(error)));
             return;
         }
 
@@ -378,7 +378,7 @@ async function deleteItem(id) {
 
         await loadInventory();
     } catch (err) {
-        alert('Unexpected error archiving item.');
+        Toast.error('Unexpected error archiving item.');
     }
 }
 
@@ -455,22 +455,22 @@ saveDecorationBtn?.addEventListener("click", async () => {
     const rentalPrice = parseFloat(decorationRentalPrice.value) || 0;
 
     if (!name || !type || isNaN(total)) {
-        alert("Please fill all required fields correctly.");
+        Toast.warning("Please fill all required fields correctly.");
         return;
     }
 
     if (total < 0) {
-        alert("Total quantity cannot be negative.");
+        Toast.warning("Total quantity cannot be negative.");
         return;
     }
 
     if (damaged < 0) {
-        alert("Damaged quantity cannot be negative.");
+        Toast.warning("Damaged quantity cannot be negative.");
         return;
     }
 
     if (damaged > total) {
-        alert("Damaged quantity cannot exceed total quantity.");
+        Toast.warning("Damaged quantity cannot exceed total quantity.");
         return;
     }
 
@@ -492,7 +492,7 @@ saveDecorationBtn?.addEventListener("click", async () => {
             const { data, error } = await supabase.from("decorations").update(payload).eq('id', editDecorationId).select();
             if (error) {
                 console.error("Update error:", error);
-                alert(`Failed to update decoration. ${error.message || JSON.stringify(error)}`);
+                Toast.error(`Failed to update decoration. ${error.message || JSON.stringify(error)}`);
                 return;
             }
 
@@ -516,7 +516,7 @@ saveDecorationBtn?.addEventListener("click", async () => {
             const { data, error } = await supabase.from("decorations").insert(payload).select();
             if (error) {
                 console.error("Insert error:", error);
-                alert(`Failed to add decoration. ${error.message || JSON.stringify(error)}`);
+                Toast.error(`Failed to add decoration. ${error.message || JSON.stringify(error)}`);
                 return;
             }
 
@@ -533,7 +533,7 @@ saveDecorationBtn?.addEventListener("click", async () => {
         await loadDecorations();
     } catch (err) {
         console.error("Unexpected error while saving decoration:", err);
-        alert(`Unexpected error: ${err.message || JSON.stringify(err)}`);
+        Toast.error(`Unexpected error: ${err.message || JSON.stringify(err)}`);
     } finally {
         saveDecorationBtn.disabled = false;
     }
@@ -658,15 +658,15 @@ decorationsTbody.addEventListener('click', async (e) => {
         openEditDecorationModal(id);
     } else if (delBtn) {
         const id = delBtn.getAttribute('data-id');
-        if (confirm('Delete this decoration?')) {
+        Toast.confirm('Delete this decoration?', async () => {
             await deleteDecoration(id);
-        }
+        });
     }
 });
 
 async function openEditDecorationModal(id) {
     const item = decorationsData.find(d => String(d.id) === String(id));
-    if (!item) return alert('Decoration not found');
+    if (!item) { Toast.error('Decoration not found'); return; }
     editDecorationId = item.id;
     decorationName.value = item.name || '';
     decorationType.value = item.type || '';
@@ -680,7 +680,7 @@ async function openEditDecorationModal(id) {
 async function deleteDecoration(id) {
     // Check permission
     if (!await canDelete()) {
-        alert("Permission denied. Only Admins can delete decorations.");
+        Toast.error("Permission denied. Only Admins can delete decorations.");
         return;
     }
 
@@ -693,7 +693,7 @@ async function deleteDecoration(id) {
             .update({ archived: true })
             .eq('id', id);
         if (error) {
-            alert('Failed to archive decoration. ' + (error.message || JSON.stringify(error)));
+            Toast.error('Failed to archive decoration. ' + (error.message || JSON.stringify(error)));
             return;
         }
 
@@ -707,7 +707,7 @@ async function deleteDecoration(id) {
 
         await loadDecorations();
     } catch (err) {
-        alert('Unexpected error archiving decoration.');
+        Toast.error('Unexpected error archiving decoration.');
     }
 }
 

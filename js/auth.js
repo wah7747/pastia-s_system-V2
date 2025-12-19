@@ -81,7 +81,7 @@ async function handleLogin() {
   const password = passwordInput.value.trim();
 
   if (!email || !password) {
-    alert("Please enter both email and password.");
+    Toast.warning("Please enter both email and password.");
     return;
   }
 
@@ -92,7 +92,7 @@ async function handleLogin() {
 
   if (error) {
     console.error("Login error:", error);
-    alert("Login failed: " + error.message);
+    Toast.error("Login failed: " + error.message);
     return;
   }
 
@@ -116,11 +116,11 @@ async function handleForgotPassword() {
 
   if (error) {
     console.error("Reset password error:", error);
-    alert("Failed to send reset email: " + error.message);
+    Toast.error("Failed to send reset email: " + error.message);
     return;
   }
 
-  alert("Password reset email sent! Check your inbox.");
+  Toast.success("Password reset email sent! Check your inbox.");
 }
 
 /**
