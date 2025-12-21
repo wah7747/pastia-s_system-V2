@@ -1712,12 +1712,14 @@ async function loadRentals() {
 `)
       : (isAdmin
         ? `
-  <button onclick="editRental('${editIds}')" class="btn-action btn-action-edit" title="${isMultiItem ? 'Edit Group' : 'Edit'}">✏️ Edit</button>
-    <button onclick="archiveRentalGroup('${group.rentalIds.join(',')}')" class="btn-action btn-action-delete" title="Delete">🗑️ Delete</button>
+  \u003cbutton onclick=\"viewRentalDetails('${group.rentalIds[0]}')\" class=\"btn-action\" title=\"View Details\" style=\"padding: 6px 12px; margin: 2px; background: #2196F3; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;\"\u003e👁️ View\u003c/button\u003e
+  \u003cbutton onclick=\"editRental('${editIds}')\" class=\"btn-action btn-action-edit\" title=\"${isMultiItem ? 'Edit Group' : 'Edit'}\"\u003e✏️ Edit\u003c/button\u003e
+    \u003cbutton onclick=\"archiveRentalGroup('${group.rentalIds.join(',')}')\" class=\"btn-action btn-action-delete\" title=\"Delete\"\u003e🗑️ Delete\u003c/button\u003e
 `
         : `
-  <button onclick="editRental('${editIds}')" class="btn-action btn-action-edit" title="${isMultiItem ? 'Edit Group' : 'Edit'}">✏️ Edit</button>
-    <span style="color: #999; font-size: 0.85em; font-style: italic;">No permission</span>
+  \u003cbutton onclick=\"viewRentalDetails('${group.rentalIds[0]}')\" class=\"btn-action\" title=\"View Details\" style=\"padding: 6px 12px; margin: 2px; background: #2196F3; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;\"\u003e👁️ View\u003c/button\u003e
+  \u003cbutton onclick=\"editRental('${editIds}')\" class=\"btn-action btn-action-edit\" title=\"${isMultiItem ? 'Edit Group' : 'Edit'}\"\u003e✏️ Edit\u003c/button\u003e
+    \u003cspan style=\"color: #999; font-size: 0.85em; font-style: italic;\"\u003eNo permission\u003c/span\u003e
 `);
 
     // Create client display with tooltip on click
