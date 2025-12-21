@@ -1,6 +1,7 @@
 // js/users.js
 import { supabase } from "./supabase.js";
 import { getCurrentUserProfile, isLoggedIn, canDelete } from "./auth.js";
+import { validatePassword, isValidEmail } from "./security.js";
 
 let currentUser = null;
 let editUserId = null;
@@ -256,6 +257,19 @@ document.getElementById("addUserForm")?.addEventListener("submit", async (e) => 
 
   if (!fullname || !email || !password) {
     Toast.warning("Please fill in all fields.");
+    return;
+  }
+
+  // Validate email format
+  if (!isValidEmail(email)) {
+    Toast.warning("Please enter a valid email address.");
+    return;
+  }
+
+  // Validate password strength
+  const passwordError = validatePassword(password);
+  if (passwordError) {
+    Toast.warning(passwordError);
     return;
   }
 
