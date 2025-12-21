@@ -316,6 +316,12 @@ function openModal(rental = null) {
   const clientPhone = document.getElementById("rentalClientPhone");
   const clientAddress = document.getElementById("rentalClientAddress");
 
+  // Get reschedule UI elements
+  const originalDatesSection = document.getElementById("originalDatesSection");
+  const rescheduleSectionHeader = document.getElementById("rescheduleSectionHeader");
+  const originalRentalDate = document.getElementById("originalRentalDate");
+  const originalReturnDate = document.getElementById("originalReturnDate");
+
   if (rental) {
     // EDIT MODE - editing existing rental WITH CART
     editRentalId = rental.id;
@@ -332,35 +338,35 @@ function openModal(rental = null) {
     if (clientPhone) clientPhone.value = rental.client_phone || "";
     if (clientAddress) clientAddress.value = rental.client_address || "";
 
-    // Set dates first (needed for cart calculation)
-    rentalDate.value = rental.rent_date || "";
-    returnDate.value = rental.return_date || "";
-    if (rentalTime) rentalTime.value = rental.rent_time || "";
-    if (returnTime) returnTime.value = rental.return_time || "";
-
-    // Show and populate original dates section (for rescheduling)
-    const originalDatesSection = document.getElementById("originalDatesSection");
-    const rescheduleSectionHeader = document.getElementById("rescheduleSectionHeader");
-    const originalRentalDate = document.getElementById("originalRentalDate");
-    const originalReturnDate = document.getElementById("originalReturnDate");
-
+    // SHOW RESCHEDULE UI SECTIONS FIRST (before setting dates)
     console.log("=== EDIT MODE: Showing reschedule sections ===");
     console.log("originalDatesSection found:", !!originalDatesSection);
     console.log("rescheduleSectionHeader found:", !!rescheduleSectionHeader);
 
-    // Show original dates and reschedule header for ALL edit modes (rental and sale)
     if (originalDatesSection) {
       originalDatesSection.style.display = "block";
       console.log("✓ originalDatesSection display set to block");
+    } else {
+      console.error("❌ originalDatesSection element NOT FOUND");
     }
 
     if (rescheduleSectionHeader) {
       rescheduleSectionHeader.style.display = "block";
       console.log("✓ rescheduleSectionHeader display set to block");
+    } else {
+      console.error("❌ rescheduleSectionHeader element NOT FOUND");
     }
 
+    // Set original dates (read-only fields)
     if (originalRentalDate) originalRentalDate.value = rental.rent_date || "";
     if (originalReturnDate) originalReturnDate.value = rental.return_date || "";
+
+    // Set current dates (editable fields for rescheduling)
+    rentalDate.value = rental.rent_date || "";
+    returnDate.value = rental.return_date || "";
+    if (rentalTime) rentalTime.value = rental.rent_time || "";
+    if (returnTime) returnTime.value = rental.return_time || "";
+
 
     paymentMethod.value = rental.payment_method || "Cash";
     paymentStatus.value = rental.payment_status || "Pending";
