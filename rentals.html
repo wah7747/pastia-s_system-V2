@@ -101,6 +101,39 @@
       <!-- Calendar View Container -->
       <div id="calendarView" class="view-container hidden">
         <div class="calendar-controls">
+          <!-- Item Availability Checker -->
+          <div class="item-availability-selector" style="margin-bottom: 1rem;">
+            <label for="calendarItemFilter" style="font-weight: 600; margin-right: 0.5rem;">Check Item
+              Availability:</label>
+            <select id="calendarItemFilter"
+              style="padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; margin-right: 0.5rem;">
+              <option value="">-- Show All Rentals --</option>
+            </select>
+            <button id="clearItemFilter" class="secondary-button" style="padding: 8px 16px;">Clear Filter</button>
+          </div>
+
+          <!-- Availability Legend (hidden by default, shown when item selected) -->
+          <div id="availabilityLegend" class="hidden"
+            style="display: flex; gap: 1rem; margin-bottom: 1rem; padding: 0.75rem; background: #f8f9fa; border-radius: 8px; align-items: center;">
+            <span style="font-weight: 600; color: #666;">Legend:</span>
+            <span class="legend-item" style="display: flex; align-items: center; gap: 0.5rem;">
+              <span class="legend-color"
+                style="width: 20px; height: 20px; border-radius: 4px; background: #4caf50;"></span>
+              <span>Available</span>
+            </span>
+            <span class="legend-item" style="display: flex; align-items: center; gap: 0.5rem;">
+              <span class="legend-color"
+                style="width: 20px; height: 20px; border-radius: 4px; background: #ff9800;"></span>
+              <span>Partially Booked</span>
+            </span>
+            <span class="legend-item" style="display: flex; align-items: center; gap: 0.5rem;">
+              <span class="legend-color"
+                style="width: 20px; height: 20px; border-radius: 4px; background: #f44336;"></span>
+              <span>Fully Booked</span>
+            </span>
+          </div>
+
+          <!-- Status Filters -->
           <div class="calendar-filters">
             <label>
               <input type="checkbox" id="filterActive" checked> Active
@@ -282,6 +315,26 @@
               <input type="date" id="returnDate">
             </div>
           </div>
+
+          <!-- Time fields for hour-based rentals -->
+          <div class="form-row">
+            <div class="form-group">
+              <label for="rentalTime">
+                Start Time <small style="color: #888; font-weight: normal;">(Optional - leave blank for all-day)</small>
+              </label>
+              <input type="time" id="rentalTime" placeholder="e.g. 09:00">
+            </div>
+            <div class="form-group">
+              <label for="returnTime">
+                End Time <small style="color: #888; font-weight: normal;">(Optional)</small>
+              </label>
+              <input type="time" id="returnTime" placeholder="e.g. 16:00">
+            </div>
+          </div>
+
+          <p class="info-text" style="font-size: 0.85rem; color: #666; margin-top: -0.5rem;">
+            💡 Tip: Leave times blank for all-day rentals. Specify times for hour-based bookings (e.g., 9am - 4pm).
+          </p>
 
           <p id="availabilityInfo" class="info-text" style="margin-bottom: 1rem; font-size: 0.9rem;">Select item and
             dates to check availability</p>

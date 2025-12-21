@@ -2,6 +2,7 @@
 // ========== CALENDAR VIEW ==========
 
 let calendar;
+let selectedItemId = null; // Track selected item for availability view
 
 // Tab switching
 document.getElementById('listViewTab')?.addEventListener('click', () => switchView('list'));
@@ -44,46 +45,280 @@ async function initializeCalendar() {
     });
 
     calendar.render();
+
+    // Populate item filter dropdown
+    await populateItemFilterDropdown();
+
+    // Setup filter event listeners
+    setupCalendarFilters();
+}
+
+// Populate item dropdown for calendar filter
+async function populateItemFilterDropdown() {
+    const select = document.getElementById('calendarItemFilter');
+    if (!select) return;
+
+    // Fetch all items
+    const { data: inventoryItems } = await supabase
+        .from('inventory_items')
+        .select('id, name')
+        .eq('archived', false)
+        .order('name');
+
+    const { data: decorations } = await supabase
+        .from('decorations')
+        .select('id, name')
+        .eq('archived', false)
+        .order('name');
+
+    const allItems = [
+        ...(inventoryItems || []).map(i => ({ ...i, type: 'rental' })),
+        ...(decorations || []).map(i => ({ ...i, type: 'decoration' }))
+    ];
+
+    // Clear existing options except first
+    select.innerHTML = '<option value="">-- Show All Rentals --</option>';
+
+    // Add items
+    allItems.forEach(item => {
+        const option = document.createElement('option');
+        option.value = item.id;
+        option.textContent = `${item.name} (${item.type})`;
+        select.appendChild(option);
+    });
+}
+
+// Setup calendar filter event listeners
+function setupCalendarFilters() {
+    const itemFilter = document.getElementById('calendarItemFilter');
+    const clearFilterBtn = document.getElementById('clearItemFilter');
+    const legend = document.getElementById('availabilityLegend');
+
+    itemFilter?.addEventListener('change', async (e) => {
+        selectedItemId = e.target.value || null;
+
+        // Show/hide legend based on selection
+        if (selectedItemId && legend) {
+            legend.classList.remove('hidden');
+        } else if (legend) {
+            legend.classList.add('hidden');
+        }
+
+        // Refresh calendar
+        if (calendar) {
+            const events = await fetchCalendarEvents();
+            calendar.removeAllEvents();
+            calendar.addEventSource(events);
+        }
+    });
+
+    clearFilterBtn?.addEventListener('click', () => {
+        if (itemFilter) itemFilter.value = '';
+        selectedItemId = null;
+        if (legend) legend.classList.add('hidden');
+        refreshCalendar();
+    });
+
+    // Status filters
+    const statusFilters = ['filterActive', 'filterReserved', 'filterCancelled'];
+    statusFilters.forEach(filterId => {
+        document.getElementById(filterId)?.addEventListener('change', refreshCalendar);
+    });
 }
 
 async function fetchCalendarEvents() {
     try {
-        // Fetch rentals
-        const { data: rentals } = await supabase
-            .from("rentals")
-            .select("*")
-            .or('archived.is.null,archived.eq.false');
+        // If item is selected, show availability for that item
+        if (selectedItemId) {
+            return await fetchItemAvailabilityEvents(selectedItemId);
+        }
 
-        // Fetch item names
-        const { data: inventoryItems } = await supabase
-            .from("inventory_items")
-            .select("id, name");
+        // Otherwise show all rentals
+        return await fetchRentalEvents();
+    } catch (error) {
+        console.error("Error fetching calendar events:", error);
+        return [];
+    }
+}
 
-        const { data: decorations } = await supabase
-            .from("decorations")
-            .select("id, name");
+// Fetch all rental events (normal calendar view)
+async function fetchRentalEvents() {
+    // Fetch rentals
+    const { data: rentals } = await supabase
+        .from("rentals")
+        .select("*")
+        .or('archived.is.null,archived.eq.false');
 
-        const itemMap = {};
-        [...(inventoryItems || []), ...(decorations || [])].forEach(item => {
-            itemMap[String(item.id)] = item.name;
-        });
+    // Fetch item names
+    const { data: inventoryItems } = await supabase
+        .from("inventory_items")
+        .select("id, name");
 
-        // Transform to calendar events
-        return rentals.map(rental => ({
+    const { data: decorations } = await supabase
+        .from("decorations")
+        .select("id, name");
+
+    const itemMap = {};
+    [...(inventoryItems || []), ...(decorations || [])].forEach(item => {
+        itemMap[String(item.id)] = item.name;
+    });
+
+    // Transform to calendar events
+    return rentals.map(rental => {
+        let title = `${rental.renter_name} - ${itemMap[String(rental.item_id)] || 'Unknown'}`;
+
+        // Determine if this is a timed event or all-day event
+        const hasTime = rental.rent_time && rental.return_time;
+
+        // Add time info to title if present
+        if (hasTime) {
+            const startTime = formatTime(rental.rent_time);
+            const endTime = formatTime(rental.return_time);
+            title = `${startTime}-${endTime}: ${title}`;
+        }
+
+        // Create event object
+        const event = {
             id: rental.id,
-            title: `${rental.renter_name} - ${itemMap[String(rental.item_id)] || 'Unknown'}`,
-            start: rental.rent_date,
-            end: rental.return_date,
+            title: title,
             backgroundColor: getStatusColor(rental.status),
             borderColor: getStatusColor(rental.status),
             extendedProps: {
                 rentalData: rental
             }
-        }));
-    } catch (error) {
-        console.error("Error fetching calendar events:", error);
-        return [];
+        };
+
+        // Set start/end based on whether times are present
+        if (hasTime) {
+            // Time-based event: use datetime format
+            event.start = `${rental.rent_date}T${rental.rent_time}`;
+            event.end = `${rental.return_date}T${rental.return_time}`;
+            event.allDay = false;
+        } else {
+            // All-day event: use date format
+            event.start = rental.rent_date;
+            event.end = rental.return_date;
+            event.allDay = true;
+        }
+
+        return event;
+    });
+}
+
+// NEW: Fetch availability events for a specific item
+async function fetchItemAvailabilityEvents(itemId) {
+    // Get item details
+    let item = null;
+    const { data: invItem } = await supabase
+        .from('inventory_items')
+        .select('*')
+        .eq('id', itemId)
+        .single();
+
+    if (invItem) {
+        item = invItem;
+    } else {
+        const { data: decItem } = await supabase
+            .from('decorations')
+            .select('*')
+            .eq('id', itemId)
+            .single();
+        item = decItem;
     }
+
+    if (!item) return [];
+
+    const totalQuantity = item.quantity_total || 0;
+
+    // Get all rentals for this item
+    const { data: rentals } = await supabase
+        .from('rentals')
+        .select('*')
+        .eq('item_id', itemId)
+        .in('status', ['active', 'reserved'])
+        .or('archived.is.null,archived.eq.false');
+
+    // Calculate availability by date
+    const availabilityMap = {};
+    const events = [];
+
+    // Process all rentals to build availability map
+    (rentals || []).forEach(rental => {
+        const startDate = new Date(rental.rent_date);
+        const endDate = new Date(rental.return_date || rental.rent_date);
+
+        // For each date in the rental period
+        for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+            const dateKey = d.toISOString().split('T')[0];
+
+            if (!availabilityMap[dateKey]) {
+                availabilityMap[dateKey] = {
+                    totalBooked: 0,
+                    rentals: []
+                };
+            }
+
+            availabilityMap[dateKey].totalBooked += rental.quantity || 0;
+            availabilityMap[dateKey].rentals.push(rental);
+        }
+    });
+
+    // Create availability events for next 90 days
+    const today = new Date();
+    for (let i = 0; i < 90; i++) {
+        const date = new Date(today);
+        date.setDate(date.getDate() + i);
+        const dateKey = date.toISOString().split('T')[0];
+
+        const booked = availabilityMap[dateKey]?.totalBooked || 0;
+        const available = totalQuantity - booked;
+        const availabilityPercent = (available / totalQuantity) * 100;
+
+        // Color code by availability
+        let color;
+        let status;
+        if (availabilityPercent >= 100) {
+            color = '#4caf50'; // Green - fully available
+            status = 'Available';
+        } else if (availabilityPercent > 0) {
+            color = '#ff9800'; // Orange - partially available
+            status = 'Partially Booked';
+        } else {
+            color = '#f44336'; // Red - fully booked
+            status = 'Fully Booked';
+        }
+
+        events.push({
+            title: `${item.name}: ${available}/${totalQuantity} available`,
+            start: dateKey,
+            end: dateKey,
+            backgroundColor: color,
+            borderColor: color,
+            allDay: true,
+            extendedProps: {
+                availabilityData: {
+                    item: item.name,
+                    available,
+                    total: totalQuantity,
+                    booked,
+                    status,
+                    rentals: availabilityMap[dateKey]?.rentals || []
+                }
+            }
+        });
+    }
+
+    return events;
+}
+
+// Format time from 24-hour to 12-hour with AM/PM
+function formatTime(timeString) {
+    if (!timeString) return '';
+    const [hours, minutes] = timeString.split(':');
+    const h = parseInt(hours);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    return `${h12}:${minutes}${ampm}`;
 }
 
 function getStatusColor(status) {
@@ -97,8 +332,39 @@ function getStatusColor(status) {
 }
 
 function handleEventClick(info) {
-    const rental = info.event.extendedProps.rentalData;
-    const message = `Rental Details:\n\nCustomer: ${rental.renter_name}\nDates: ${rental.rent_date} to ${rental.return_date}\nStatus: ${rental.status}\nPayment: ₱${rental.payment_amount}`;
-    Toast.info(message);
-    // TODO: Open existing rental modal with data for editing
+    // Check if this is an availability event or rental event
+    if (info.event.extendedProps.availabilityData) {
+        const data = info.event.extendedProps.availabilityData;
+        let message = `${data.item} Availability\\n\\nDate: ${info.event.startStr}\\nStatus: ${data.status}\\nAvailable: ${data.available}/${data.total}\\nBooked: ${data.booked}`;
+
+        if (data.rentals.length > 0) {
+            message += `\\n\\nBookings on this date:`;
+            data.rentals.forEach((r, i) => {
+                const timeStr = r.rent_time && r.return_time ? ` (${formatTime(r.rent_time)}-${formatTime(r.return_time)})` : '';
+                message += `\\n${i + 1}. ${r.renter_name}: ${r.quantity} units${timeStr}`;
+            });
+        }
+
+        Toast.info(message);
+    } else {
+        // Regular rental event
+        const rental = info.event.extendedProps.rentalData;
+        let message = `Rental Details:\\n\\nCustomer: ${rental.renter_name}\\nDates: ${rental.rent_date} to ${rental.return_date}`;
+
+        if (rental.rent_time && rental.return_time) {
+            message += `\\nTime: ${formatTime(rental.rent_time)} - ${formatTime(rental.return_time)}`;
+        }
+
+        message += `\\nStatus: ${rental.status}\\nPayment: ₱${rental.payment_amount}`;
+        Toast.info(message);
+    }
+}
+
+// Function to refresh calendar with latest data
+async function refreshCalendar() {
+    if (!calendar) return;
+
+    const events = await fetchCalendarEvents();
+    calendar.removeAllEvents();
+    calendar.addEventSource(events);
 }

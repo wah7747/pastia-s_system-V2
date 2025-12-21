@@ -15,6 +15,8 @@ const rentalItem = document.getElementById("rentalItem");
 const rentalQty = document.getElementById("rentalQty");
 const rentalDate = document.getElementById("rentalDate");
 const returnDate = document.getElementById("returnDate");
+const rentalTime = document.getElementById("rentalTime"); // Time fields for hour-based rentals
+const returnTime = document.getElementById("returnTime");
 const paymentAmount = document.getElementById("paymentAmount");
 const paymentMethod = document.getElementById("paymentMethod");
 const paymentStatus = document.getElementById("paymentStatus");
@@ -333,6 +335,8 @@ function openModal(rental = null) {
     // Set dates first (needed for cart calculation)
     rentalDate.value = rental.rent_date || "";
     returnDate.value = rental.return_date || "";
+    if (rentalTime) rentalTime.value = rental.rent_time || "";
+    if (returnTime) returnTime.value = rental.return_time || "";
 
     // Show and populate original dates section (for rescheduling)
     const originalDatesSection = document.getElementById("originalDatesSection");
@@ -416,6 +420,8 @@ function openModal(rental = null) {
     const tmr = new Date();
     tmr.setDate(tmr.getDate() + 1);
     returnDate.value = tmr.toISOString().split('T')[0];
+    if (rentalTime) rentalTime.value = ""; // Reset time fields for new rental
+    if (returnTime) returnTime.value = "";
 
     paymentAmount.value = 0;
     advancePayment.value = 0; // Reset advance payment for new rental
@@ -1162,6 +1168,8 @@ saveRentalBtn?.addEventListener("click", async () => {
   const sharedClientAddress = document.getElementById("rentalClientAddress")?.value || null;
   const sharedRentalDate = rentalDate.value;
   const sharedReturnDate = returnDate.value;
+  const sharedRentalTime = rentalTime?.value || null; // Time fields (optional)
+  const sharedReturnTime = returnTime?.value || null;
   const sharedPaymentMethod = paymentMethod.value;
   const sharedPaymentStatus = paymentStatus.value;
 
@@ -1214,6 +1222,8 @@ saveRentalBtn?.addEventListener("click", async () => {
             status: selectedStatus,
             item_id: rental.item_id,
             quantity: rental.quantity,
+            rent_time: sharedRentalTime,
+            return_time: sharedReturnTime,
             payment_amount: rental.itemPrice * rental.quantity,
             advance_payment: parseFloat(advancePayment.value) || 0 // Add advance payment
           };
@@ -1298,6 +1308,8 @@ saveRentalBtn?.addEventListener("click", async () => {
             quantity: cartItem.quantity,
             rent_date: sharedRentalDate,
             return_date: sharedReturnDate || null,
+            rent_time: sharedRentalTime,
+            return_time: sharedReturnTime,
             payment_amount: cartItem.subtotal,
             payment_method: sharedPaymentMethod,
             payment_status: sharedPaymentStatus,
@@ -1397,6 +1409,8 @@ saveRentalBtn?.addEventListener("click", async () => {
               quantity: cartItem.quantity,
               rent_date: sharedRentalDate,
               return_date: sharedReturnDate || null, // Use null if empty (for sales)
+              rent_time: sharedRentalTime,
+              return_time: sharedReturnTime,
               payment_amount: cartItem.subtotal,
               payment_method: sharedPaymentMethod,
               payment_status: sharedPaymentStatus,
@@ -1520,6 +1534,8 @@ saveRentalBtn?.addEventListener("click", async () => {
           quantity: cartItem.quantity,
           rent_date: sharedRentalDate,
           return_date: sharedReturnDate || null, // Use null if empty (for sales)
+          rent_time: sharedRentalTime,
+          return_time: sharedReturnTime,
           payment_amount: cartItem.subtotal,
           payment_method: sharedPaymentMethod,
           payment_status: sharedPaymentStatus,
