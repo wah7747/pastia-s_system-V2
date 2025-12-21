@@ -1,6 +1,8 @@
 
 // ========== CALENDAR VIEW ==========
 
+import { supabase } from "./supabase.js";
+
 let calendar;
 let selectedItemId = null; // Track selected item for availability view
 
@@ -170,6 +172,12 @@ async function fetchRentalEvents() {
         // Determine if this is a timed event or all-day event
         const hasTime = rental.rent_time && rental.return_time;
 
+        console.log(`Event for ${rental.renter_name}:`, {
+            rent_time: rental.rent_time,
+            return_time: rental.return_time,
+            hasTime: hasTime
+        });
+
         // Add time info to title if present
         if (hasTime) {
             const startTime = formatTime(rental.rent_time);
@@ -194,11 +202,13 @@ async function fetchRentalEvents() {
             event.start = `${rental.rent_date}T${rental.rent_time}`;
             event.end = `${rental.return_date}T${rental.return_time}`;
             event.allDay = false;
+            console.log(`Creating TIMED event:`, { start: event.start, end: event.end, allDay: event.allDay });
         } else {
             // All-day event: use date format
             event.start = rental.rent_date;
             event.end = rental.return_date;
             event.allDay = true;
+            console.log(`Creating ALL-DAY event:`, { start: event.start, end: event.end, allDay: event.allDay });
         }
 
         return event;
