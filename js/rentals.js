@@ -321,6 +321,7 @@ function openModal(rental = null) {
   const rescheduleSectionHeader = document.getElementById("rescheduleSectionHeader");
   const originalRentalDate = document.getElementById("originalRentalDate");
   const originalReturnDate = document.getElementById("originalReturnDate");
+  const rescheduledIndicator = document.getElementById("rescheduledIndicator");
 
   if (rental) {
     // EDIT MODE - editing existing rental WITH CART
@@ -355,6 +356,12 @@ function openModal(rental = null) {
       console.log("✓ rescheduleSectionHeader display set to block");
     } else {
       console.error("❌ rescheduleSectionHeader element NOT FOUND");
+    }
+
+    // Show rescheduled indicator in edit mode
+    if (rescheduledIndicator) {
+      rescheduledIndicator.style.display = "block";
+      console.log("✓ rescheduledIndicator display set to block");
     }
 
     // Set original dates (read-only fields)
@@ -440,8 +447,10 @@ function openModal(rental = null) {
     // Hide original dates section when creating new rental
     const originalDatesSection = document.getElementById("originalDatesSection");
     const rescheduleSectionHeader = document.getElementById("rescheduleSectionHeader");
+    const rescheduledIndicator = document.getElementById("rescheduledIndicator");
     if (originalDatesSection) originalDatesSection.style.display = "none";
     if (rescheduleSectionHeader) rescheduleSectionHeader.style.display = "none";
+    if (rescheduledIndicator) rescheduledIndicator.style.display = "none";
 
     // Show cart UI and reset cart
     addToCartSection.style.display = "block";

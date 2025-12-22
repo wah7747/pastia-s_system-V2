@@ -336,6 +336,20 @@
             💡 Tip: Leave times blank for all-day rentals. Specify times for hour-based bookings (e.g., 9am - 4pm).
           </p>
 
+          <!-- Rescheduled Information Indicator (shown when dates were changed) -->
+          <div id="rescheduledIndicator"
+            style="display: none; margin-top: 1rem; margin-bottom: 1rem; padding: 0.75rem 1rem; background: #e0f2fe; border-left: 4px solid #0284c7; border-radius: 6px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2">
+                <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <strong style="color: #0369a1; font-size: 0.9rem;">📅 This rental was rescheduled</strong>
+            </div>
+            <p style="margin: 0; font-size: 0.85rem; color: #075985;">
+              Original dates have been changed. See "Original Scheduled Dates" section above for reference.
+            </p>
+          </div>
+
           <p id="availabilityInfo" class="info-text" style="margin-bottom: 1rem; font-size: 0.9rem;">Select item and
             dates to check availability</p>
 
